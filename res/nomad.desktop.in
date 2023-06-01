@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Version=0.1
+Name=Nomad
+Comment=Work in progress
+Categories=Application;Utility;
+Exec=nomad
+Icon=@APP_ICON@

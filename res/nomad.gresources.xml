@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/de/pfeifer_syscon/nomad">
+    <file preprocess="xml-stripblanks">app-menu.ui</file>
+    <file preprocess="xml-stripblanks">nomad-win.ui</file>
+    <file preprocess="xml-stripblanks">abt-dlg.ui</file>
+    <file preprocess="xml-stripblanks">help-dlg.ui</file>
+    <file>nomad.png</file>
+  </gresource>
+</gresources>
