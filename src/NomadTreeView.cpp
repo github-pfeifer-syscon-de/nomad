@@ -17,6 +17,7 @@
 
 #include <iostream>
 
+#include "Preview.hpp"
 #include "NomadTreeView.hpp"
 #include "NomadWin.hpp"
 

@@ -4,16 +4,15 @@
 
 PKGCONFIG = pkg-config
 GLIB_COMPILE_RESOURCES = $(shell $(PKGCONFIG) --variable=glib_compile_resources gio-2.0)
-GLIB_COMPILE_SCHEMAS = $(shell $(PKGCONFIG) --variable=glib_compile_schemas gio-2.0)
 
-NODMAD_RESOURCE_XML=nomad.gresources.xml
-RESOURCE_C=../src/resources.c
-NOMAD_RESOURCES=$(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=. --generate-dependencies $(NODMAD_RESOURCE_XML))
+NOMAD_RESOURCE_XML = nomad.gresources.xml
+RESOURCE_C = ../src/resources.c
+NOMAD_RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=. --generate-dependencies $(NOMAD_RESOURCE_XML))
 
-all:$(RESOURCE_C) $(GSCHEMA_COMPILED)
+all:$(RESOURCE_C)
 
-$(RESOURCE_C): $(NODMAD_RESOURCE_XML) $(NODMAD_RESOURCES)
-	$(GLIB_COMPILE_RESOURCES) --target=$(RESOURCE_C) --sourcedir=. --generate-source $(NODMAD_RESOURCE_XML)
+$(RESOURCE_C): $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES)
+	$(GLIB_COMPILE_RESOURCES) --target=$(RESOURCE_C) --sourcedir=. --generate-source $(NOMAD_RESOURCE_XML)
 
 # The desktop files
 desktopdir = $(datadir)/applications
@@ -26,9 +25,7 @@ appicon_DATA = nomad.png
 appdir_icon=$(appicondir)/$(appicon_DATA)
 
 # include source for build
-EXTRA_DIST = $(NODMAD_RESOURCE_XML) $(NODMAD_RESOURCES) $(desktop_in_files) $(appicon_DATA)
-
-
+EXTRA_DIST = $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES) $(desktop_in_files) $(appicon_DATA)
 
 clean-local:
 	-rm -rf $(RESOURCE_C)

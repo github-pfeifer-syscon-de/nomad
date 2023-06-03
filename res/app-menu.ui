@@ -20,13 +20,17 @@
       </section>
     </submenu>
     <submenu>
-      <attribute name="label" translatable="yes">_Preferences</attribute>
+      <attribute name="label" translatable="yes">Actions</attribute>
       <section>
+        <item>
+          <attribute name="label" translatable="yes">Capture in 10s</attribute>
+          <attribute name="action">win.capture10</attribute>
+        </item>
       </section>
     </submenu>
     <submenu>
       <attribute translatable="yes" name="label">Help</attribute>
-      <section>    
+      <section>
         <item>
           <attribute name="label" translatable="yes">_Help</attribute>
           <attribute name="action">app.help</attribute>
@@ -35,7 +39,7 @@
           <attribute name="label" translatable="yes">_About</attribute>
           <attribute name="action">app.about</attribute>
         </item>
-      </section>  
+      </section>
     </submenu>
   </menu>
 </interface>

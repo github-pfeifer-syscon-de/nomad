@@ -23,11 +23,43 @@
 #include "NomadApp.hpp"
 #include "Capture.hpp"
 
+/*
+ * slightly customized file chooser
+ */
+class NomadFileChooser : public Gtk::FileChooserDialog {
+public:
+    NomadFileChooser(Gtk::Window& win, bool save, const Glib::ustring& type)
+    : Gtk::FileChooserDialog(win
+                            , save
+                            ? Glib::ustring::sprintf("Save %s-file", type)
+                            : Glib::ustring::sprintf("Open %s-file", type)
+                            , save
+                            ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
+                            : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
+                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT)
+    {
+        add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+        add_button(save
+                    ? "_Save"
+                    : "_Open", Gtk::RESPONSE_ACCEPT);
+
+        Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
+        filter->set_name("Type");
+        //filter->add_mime_type("text/plain");
+        filter->add_pattern(Glib::ustring::sprintf("*.%s", type));
+        set_filter(filter);
+    }
+
+    virtual ~NomadFileChooser() = default;
+protected:
+private:
+};
 
 NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadApp *application)
 : Gtk::ApplicationWindow(cobject)       //Calls the base class constructor
 , m_application{application}
 , m_treeView{nullptr}
+, m_preview{nullptr}
 {
     set_title("Nomad");
     auto pix = Gdk::Pixbuf::create_from_resource(m_application->get_resource_base_path() + "/nomad.png");
@@ -35,44 +67,53 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     activate_actions();
 
     builder->get_widget_derived("tree_view", m_treeView, this);
-
-    X11Capture be;
-    GdkRectangle re(0,0, 1920,1080);
-    GdkPixbuf* buf = be.get_pixbuf(nullptr);    // &re
-    if (buf) {
-        Glib::RefPtr<Gdk::Pixbuf> pbuf = Glib::wrap(buf);
-        pbuf->save("/home/rpf/screen.png", "png");
-    }
+    builder->get_widget_derived("preview", m_preview, this);
 
     show_all_children();
 }
 
-
+bool
+NomadWin::timeout()
+{
+    try {
+        X11Capture capture;
+        GdkRectangle re(0,0, 1920,1080);
+        capture.set_take_window_shot(true);
+        GdkPixbuf* buf = capture.get_pixbuf(nullptr);    // &re
+        if (buf) {
+            Glib::RefPtr<Gdk::Pixbuf> pixbuf = Glib::wrap(buf);
+            m_preview->setPixbuf(pixbuf);
+			NomadFileChooser file_chooser(*this, true, "png");
+			if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
+                pixbuf->save(file_chooser.get_filename(), "png");
+			}
+        }
+    }
+	catch (const Glib::Error &ex) {
+		show_error(Glib::ustring::sprintf("Unable to capture and save file %s", ex.what()));
+	}
+    return false;   // do not repeat
+}
 
 void
 NomadWin::activate_actions()
 {
-
-
-//    auto save_action = Gio::SimpleAction::create("save");
-//    save_action->signal_activate().connect (
-//        [this]  (const Glib::VariantBase& value)
-//		{
-//			try {
-//				CalcFileChooser file_chooser(this, true);
-//				if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-//					Glib::ustring text = m_textView->get_buffer()->get_text();
-//					Glib::file_set_contents(file_chooser.get_filename(), text);
-//				}
-//			}
-//			catch (const Glib::Error &ex) {
-//				show_error(Glib::ustring::sprintf("Unable to save file %s", ex.what()));
-//			}
-//		});
-//    add_action (save_action);
-
+    auto capture10_action = Gio::SimpleAction::create("capture10");
+    capture10_action->signal_activate().connect (
+        [this] (const Glib::VariantBase& value)  {
+			try {
+                if (m_timer.connected()) {
+                    m_timer.disconnect(); // kill previous
+                }
+                m_timer = Glib::signal_timeout().connect_seconds(
+                    sigc::mem_fun(*this, &NomadWin::timeout), 10);
+			}
+			catch (const Glib::Error &ex) {
+				show_error(Glib::ustring::sprintf("Unable to start timer %s", ex.what()));
+			}
+		});
+    add_action(capture10_action);
 }
-
 
 
 void

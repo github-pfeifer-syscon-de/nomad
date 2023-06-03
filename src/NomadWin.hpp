@@ -21,6 +21,7 @@
 #include <gtkmm.h>
 
 #include "NomadTreeView.hpp"
+#include "Preview.hpp"
 
 class NomadApp;
 
@@ -33,12 +34,15 @@ public:
     void show_error(Glib::ustring msg);
     void eval(Glib::ustring text, Gtk::TextIter& end);
     void apply_font(bool defaultFont);
+    bool timeout();
 protected:
 private:
     void build_menu();
     void activate_actions();
 
-    NomadApp *m_application;
+    NomadApp* m_application;
     NomadTreeView* m_treeView;
+    Preview* m_preview;
+    sigc::connection m_timer;
 };
 

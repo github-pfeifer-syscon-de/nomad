@@ -28,5 +28,7 @@ nomad_SOURCES = resources.c \
 	StringUtils.hpp \
 	NomadTreeView.cpp \
 	NomadTreeView.hpp \
+	Preview.cpp \
+	Preview.hpp \
 	Capture.hpp \
 	Capture.cpp
