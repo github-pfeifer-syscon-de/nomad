@@ -1,2 +1,2 @@
 # nomad
-Work in progress
+Simple capture utility (X11 only).
