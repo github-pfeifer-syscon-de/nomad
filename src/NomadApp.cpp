@@ -27,6 +27,7 @@ NomadApp::NomadApp(int argc, char **argv)
 , m_nomadAppWindow{nullptr}
 , m_exec{argv[0]}
 {
+    std::cout << "NomadApp::NomadApp" << std::endl;
 }
 
 
@@ -35,9 +36,12 @@ NomadApp::on_activate()
 {
     auto builder = Gtk::Builder::create();
     try {
+        std::cout << "NomadApp::on_activate" << std::endl;
         builder->add_from_resource(get_resource_base_path() + "/nomad-win.ui");
         builder->get_widget_derived("NomadWin", m_nomadAppWindow, this);
+        std::cout << "NomadApp::on_activate nomad win " << m_nomadAppWindow << std::endl;
         add_window(*m_nomadAppWindow);
+        std::cout << "NomadApp::on_activate show " << std::endl;
         m_nomadAppWindow->show();
     }
     catch (const Glib::Error &ex) {
@@ -124,6 +128,7 @@ NomadApp::get_exec_path()
 void
 NomadApp::on_startup()
 {
+    std::cout << "NomadApp::on_startup" << std::endl;
     Gtk::Application::on_startup();
 
     add_action("quit", sigc::mem_fun(*this, &NomadApp::on_action_quit));
@@ -147,8 +152,6 @@ NomadApp::on_startup()
 
 int main(int argc, char** argv)
 {
-    //printf("DISPLAY=%s\n", getenv("DISPLAY"));
-    //setenv("DISPLAY", ":0", 1);    // Debug on remote display
     setlocale(LC_ALL, "");      // we depend on locale
     NomadApp app(argc, argv);
 

@@ -28,7 +28,10 @@ PKG_CHECK_MODULES([GTKMM], [gtkmm-3.0])
 
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4 giomm-2.4])
 
-PKG_CHECK_MODULES(X11, x11 > 1.6.4, [nomad_CFLAGS="-DHAVE_X11"], [:])
+PKG_CHECK_MODULES(X11, x11 > 1.6.4, [USE_X11="true"], [USE_WIN="true"])
+
+AM_CONDITIONAL([HAVE_X11], [test x$USE_X11 = xtrue])
+AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])
 
 AX_CHECK_SED()
 

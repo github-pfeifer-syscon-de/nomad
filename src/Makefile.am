@@ -28,7 +28,20 @@ nomad_SOURCES = resources.c \
 	StringUtils.hpp \
 	NomadTreeView.cpp \
 	NomadTreeView.hpp \
-	Preview.cpp \
-	Preview.hpp \
 	Capture.hpp \
-	Capture.cpp
+	Capture.cpp \
+	Preview.cpp \
+	Preview.hpp
+
+if HAVE_X11
+nomad_SOURCES += \
+	X11Capture.hpp \
+	X11Capture.cpp
+endif
+
+if HAVE_WIN
+nomad_SOURCES += \
+	WinCapture.hpp \
+	WinCapture.cpp
+endif
+

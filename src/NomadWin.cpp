@@ -22,7 +22,11 @@
 #include "NomadWin.hpp"
 #include "NomadApp.hpp"
 #include "Capture.hpp"
-
+#ifdef __WIN32__
+#include "WinCapture.hpp"
+#else
+#include "X11Capture.hpp"
+#endif
 /*
  * slightly customized file chooser
  */
@@ -76,7 +80,11 @@ bool
 NomadWin::timeout()
 {
     try {
+#ifdef __WIN32__
+        WinCapture capture;
+#else
         X11Capture capture;
+#endif
         GdkRectangle re(0,0, 1920,1080);
         capture.set_take_window_shot(true);
         GdkPixbuf* buf = capture.get_pixbuf(nullptr);    // &re
@@ -87,6 +95,9 @@ NomadWin::timeout()
 			if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                 pixbuf->save(file_chooser.get_filename(), "png");
 			}
+        }
+        else {
+            std::cout << "Capture failed!" << std::endl;
         }
     }
 	catch (const Glib::Error &ex) {
