@@ -29,10 +29,12 @@
 class NomadApp : public Gtk::Application {
 public:
     NomadApp(int arc, char **argv);
+    explicit NomadApp(const NomadApp& nomadApp) = delete;
     virtual ~NomadApp() = default;
 
     void on_activate() override;
     void on_startup() override;
+    Glib::RefPtr<Gtk::Builder> get_menu_builder();
 
     Glib::ustring get_exec_path();
 private:

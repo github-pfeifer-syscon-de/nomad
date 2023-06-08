@@ -18,8 +18,22 @@
 #pragma once
 
 #include <gtkmm.h>
+#include <librsvg/rsvg.h>
 
 class NomadWin;
+
+class RSvg {
+public:
+    RSvg();
+    explicit RSvg(const RSvg&) = delete;
+    virtual ~RSvg();
+
+    bool from_file(const Glib::RefPtr<Gio::File>& f);
+    bool pixel_size(gdouble* svgWidth, gdouble* svgHeight);
+    bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height);
+private:
+    RsvgHandle* m_handle;
+};
 
 class Preview
 : public Gtk::DrawingArea
@@ -30,9 +44,12 @@ public:
 
     void setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf);
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
+protected:
+    void loadSVG(std::string const& filename);
 
 private:
     NomadWin* m_nomadWin;
+    std::shared_ptr<RSvg> m_svg;
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
 };

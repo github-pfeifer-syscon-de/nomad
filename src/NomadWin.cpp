@@ -73,6 +73,34 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     builder->get_widget_derived("tree_view", m_treeView, this);
     builder->get_widget_derived("preview", m_preview, this);
 
+//    auto menuBuilder = m_application->get_menu_builder();
+//    auto captureObj = menuBuilder->get_object("capture");
+//    auto captureItem = Glib::RefPtr<Gio::Menu>::cast_dynamic(captureObj);
+//    if (captureItem) {
+//        // capture
+//        auto captureAction{std::string("win.") + CAPTURE_ACTION_NAME};
+//        auto doCaptureItem = Gio::MenuItem::create("Capture", captureAction);
+//        captureItem->append_item(doCaptureItem);
+//        // delay
+//        auto delayAction{std::string("win.") + DELAY_ACTION_NAME};
+//        for (int sec : {3, Config::DEFAULT_DELAY, 10}) {
+//            auto name = Glib::ustring::sprintf("Delay %ds", sec);
+//            auto delayItem = Gio::MenuItem::create(name, delayAction);
+//            auto value = Glib::Variant<gint32>::create(sec);
+//            delayItem->set_action_and_target(delayAction, value);
+//            captureItem->append_item(delayItem);
+//        }
+//        // capture window
+//        auto captWindowAction{std::string("win.") + CAPTURE_WINDOW_ACTION_NAME};
+//        auto captWindowItem = Gio::MenuItem::create("Capture window", captWindowAction);
+//        //auto value = Glib::Variant<bool>::create(m_config->isCaptureWindow());
+//        //captWindowItem->set_action_and_target(captWindowAction, value);
+//        captureItem->append_item(captWindowItem);
+//    }
+//    else {
+//        std::cout << "NomadWin::NomadWin cannot find capture selection in menu!" << std::endl;
+//    }
+//
     show_all_children();
 }
 
@@ -109,21 +137,57 @@ NomadWin::timeout()
 void
 NomadWin::activate_actions()
 {
-    auto capture10_action = Gio::SimpleAction::create("capture10");
-    capture10_action->signal_activate().connect (
+    m_config = std::make_shared<Config>();
+    signal_hide().connect(
+        [this] {
+            m_config->save_config();
+        });
+    auto capture_action = Gio::SimpleAction::create("capture");
+    capture_action->signal_activate().connect (
         [this] (const Glib::VariantBase& value)  {
-			try {
+            try {
                 if (m_timer.connected()) {
                     m_timer.disconnect(); // kill previous
                 }
                 m_timer = Glib::signal_timeout().connect_seconds(
-                    sigc::mem_fun(*this, &NomadWin::timeout), 10);
-			}
-			catch (const Glib::Error &ex) {
-				show_error(Glib::ustring::sprintf("Unable to start timer %s", ex.what()));
-			}
+                    sigc::mem_fun(*this, &NomadWin::timeout), m_config->getDelay());
+            }
+            catch (const Glib::Error &ex) {
+                show_error(Glib::ustring::sprintf("Unable to start timer %s", ex.what()));
+            }
 		});
-    add_action(capture10_action);
+    add_action(capture_action);
+    auto captureWindow_action = Gio::SimpleAction::create_bool("captureWindow", m_config->isCaptureWindow());
+    captureWindow_action->signal_change_state().connect (
+        [this,captureWindow_action] (const Glib::VariantBase& value)  {
+            auto boolValue = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(value);
+            //std::cout << "NomadWin::activate_actions "
+            //          << " type " << (boolValue ? (boolValue.get() ? "y" : "n") : "?") << std::endl;
+            if (boolValue) {
+                m_config->setCaptureWindow(boolValue.get());
+                //std::cout << "change_state" << std::endl;
+                captureWindow_action->set_state(boolValue);
+            }
+            else {
+                std::cout << "NomadWin::activate_actions cannot extract value from capture window action!" << std::endl;
+            }
+        });
+    add_action(captureWindow_action);
+    // the last finesse (using create_radio_integer) doesn't work (all will be disabled)
+    auto delay_action = Gio::SimpleAction::create_radio_string("delay", Glib::ustring::sprintf("%d", m_config->getDelay()));
+    delay_action->signal_change_state().connect (
+        [this,delay_action] (const Glib::VariantBase& value)  {
+            if (value) {
+                auto strValue = Glib::VariantBase::cast_dynamic<Glib::Variant<Glib::ustring>>(value);
+                int intValue = std::stoi(strValue.get());
+                m_config->setDelay(intValue);
+                delay_action->set_state(value);
+            }
+            else {
+                std::cout << "NomadWin::activate_actions cannot extract delay !" << std::endl;
+            }
+		});
+    add_action(delay_action);
 }
 
 

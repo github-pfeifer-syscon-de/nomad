@@ -19,8 +19,6 @@
  * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  */
 
-#pragma once
-
 #include "X11Capture.hpp"
 
 #include <gtk/gtk.h>

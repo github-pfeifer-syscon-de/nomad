@@ -4,6 +4,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 dnl use -no-portablitity to stop complaining about $(shell... in res Makefile.am
 dnl i dont get it, as the shell is everywhere, turtle power!
+dnl alternative use flavor foreign
 
 AM_INIT_AUTOMAKE([1.11 -Wno-portability])
 
@@ -29,6 +30,8 @@ PKG_CHECK_MODULES([GTKMM], [gtkmm-3.0])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4 giomm-2.4])
 
 PKG_CHECK_MODULES(X11, x11 > 1.6.4, [USE_X11="true"], [USE_WIN="true"])
+
+PKG_CHECK_MODULES([RSVG], [librsvg-2.0])
 
 AM_CONDITIONAL([HAVE_X11], [test x$USE_X11 = xtrue])
 AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])

@@ -19,12 +19,31 @@
         </item>
       </section>
     </submenu>
-    <submenu>
-      <attribute name="label" translatable="yes">Actions</attribute>
+    <submenu id="capture">
+      <attribute name="label" translatable="yes">Capture</attribute>
       <section>
         <item>
-          <attribute name="label" translatable="yes">Capture in 10s</attribute>
-          <attribute name="action">win.capture10</attribute>
+          <attribute translatable="yes" name="label">Capture</attribute>
+          <attribute name="action">win.capture</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Capture window</attribute>
+          <attribute name="action">win.captureWindow</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Delay 10s</attribute>
+          <attribute name="action">win.delay</attribute>
+	  <attribute name="target">10</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Delay 5s</attribute>
+          <attribute name="action">win.delay</attribute>
+	  <attribute name="target">5</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Delay 3s</attribute>
+          <attribute name="action">win.delay</attribute>
+	  <attribute name="target">3</attribute>
         </item>
       </section>
     </submenu>

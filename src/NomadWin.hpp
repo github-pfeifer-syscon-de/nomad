@@ -19,15 +19,19 @@
 #pragma once
 
 #include <gtkmm.h>
+#include <string>
 
 #include "NomadTreeView.hpp"
 #include "Preview.hpp"
+#include "Config.hpp"
 
 class NomadApp;
 
-class NomadWin : public Gtk::ApplicationWindow {
+class NomadWin
+: public Gtk::ApplicationWindow {
 public:
     NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, NomadApp *appl);
+    explicit NomadWin(const NomadWin&) = delete;
     virtual ~NomadWin() = default;
 
     void on_hide() override;
@@ -44,5 +48,9 @@ private:
     NomadTreeView* m_treeView;
     Preview* m_preview;
     sigc::connection m_timer;
+    std::shared_ptr<Config> m_config;
+    static constexpr auto CAPTURE_ACTION_NAME = "capture";
+    static constexpr auto DELAY_ACTION_NAME = "delay";
+    static constexpr auto CAPTURE_WINDOW_ACTION_NAME = "captureWindow";
 };
 

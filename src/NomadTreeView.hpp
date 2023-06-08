@@ -24,6 +24,7 @@ class NomadWin;
 class NomadTreeView : public Gtk::TreeView {
 public:
     NomadTreeView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* calcppWin);
+    explicit NomadTreeView(const NomadTreeView&) = delete;
     virtual ~NomadTreeView() = default;
 
     void value_cell_data_func(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter, int model_column);

@@ -7,7 +7,8 @@ AM_CPPFLAGS = \
         -DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	$(X11_CFLAGS) \
 	$(GLIBMM_CFLAGS) \
-	$(GTKMM_CFLAGS)
+	$(GTKMM_CFLAGS) \
+	$(RSVG_CFLAGS)
 
 nomad_CFLAGS = -Wall
 nomad_CXXFLAGS = -Wall \
@@ -18,9 +19,12 @@ nomad_LDFLAGS = @EXTRA_LDFLAGS@
 nomad_LDADD =  \
 	$(X11_LIBS) \
 	$(GLIBMM_LIBS) \
-	$(GTKMM_LIBS)
+	$(GTKMM_LIBS) \
+	$(RSVG_LIBS)
 
 nomad_SOURCES = resources.c \
+	Config.cpp \
+	Config.hpp \
 	NomadApp.cpp \
 	NomadApp.hpp \
 	NomadWin.cpp \
