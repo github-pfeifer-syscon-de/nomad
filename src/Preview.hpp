@@ -1,3 +1,4 @@
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *

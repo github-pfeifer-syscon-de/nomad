@@ -1,3 +1,4 @@
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
@@ -28,19 +29,6 @@ Config::Config()
 {
     read_config();
 }
-
-//Glib::PropertyProxy<Glib::ustring>
-//Config::property_delay()
-//{
-//    return property_delay_.get_proxy();
-//}
-//
-//Glib::PropertyProxy<bool>
-//Config::property_capture_window()
-//{
-//    return property_captWindow_.get_proxy();
-//}
-//
 
 Glib::ustring
 Config::get_config_name()

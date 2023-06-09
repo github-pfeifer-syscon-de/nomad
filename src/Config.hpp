@@ -1,3 +1,4 @@
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
@@ -37,9 +38,8 @@ public:
     void setCaptureWindow(bool captureWindow) {
         m_captureWindow = captureWindow;
     }
-    Glib::PropertyProxy<Glib::ustring> property_delay();
-    Glib::PropertyProxy<bool> property_capture_window();
 
+protected:
     Glib::ustring get_config_name();
     void read_config();
     static constexpr auto DEFAULT_DELAY{5};

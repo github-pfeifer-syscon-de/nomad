@@ -1,3 +1,4 @@
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /* screenshot-backend-x11.h - Fallback X11 backend
  *
  * Copyright (C) 2020 Alexander Mikhaylenko <alexm@gnome.org>

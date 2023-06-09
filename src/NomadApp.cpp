@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -27,7 +27,9 @@ NomadApp::NomadApp(int argc, char **argv)
 , m_nomadAppWindow{nullptr}
 , m_exec{argv[0]}
 {
+    #ifdef NOMAD_DEBUG
     std::cout << "NomadApp::NomadApp" << std::endl;
+    #endif
 }
 
 
@@ -36,12 +38,18 @@ NomadApp::on_activate()
 {
     auto builder = Gtk::Builder::create();
     try {
+        #ifdef NOMAD_DEBUG
         std::cout << "NomadApp::on_activate" << std::endl;
+        #endif
         builder->add_from_resource(get_resource_base_path() + "/nomad-win.ui");
         builder->get_widget_derived("NomadWin", m_nomadAppWindow, this);
+        #ifdef NOMAD_DEBUG
         std::cout << "NomadApp::on_activate nomad win " << m_nomadAppWindow << std::endl;
+        #endif
         add_window(*m_nomadAppWindow);
+        #ifdef NOMAD_DEBUG
         std::cout << "NomadApp::on_activate show " << std::endl;
+        #endif
         m_nomadAppWindow->show();
     }
     catch (const Glib::Error &ex) {
@@ -128,7 +136,9 @@ NomadApp::get_exec_path()
 void
 NomadApp::on_startup()
 {
+    #ifdef NOMAD_DEBUG
     std::cout << "NomadApp::on_startup" << std::endl;
+    #endif
     Gtk::Application::on_startup();
 
     add_action("quit", sigc::mem_fun(*this, &NomadApp::on_action_quit));

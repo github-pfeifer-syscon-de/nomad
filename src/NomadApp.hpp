@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -21,6 +21,8 @@
 #include <gtkmm.h>
 
 #include "NomadWin.hpp"
+
+#undef NOMAD_DEBUG
 
 /*
  * get the application up and running
