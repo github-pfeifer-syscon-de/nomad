@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "windows.h"
+#include <iostream>
+#include <windows.h>
 
 #include "WinCapture.hpp"
 
@@ -34,7 +35,7 @@
 //
 
 static
-int CaptureAnImage()
+GdkPixbuf* CaptureAnImage()
 {
     HDC hdcScreen;
     HDC hdcMemDC = NULL;
@@ -46,6 +47,10 @@ int CaptureAnImage()
     char* lpbitmap = NULL;
     HANDLE hDIB = NULL;
     DWORD dwBmpSize = 0;
+    DWORD dwRowStride = 0;
+    GdkPixbuf* pixbuf = nullptr;
+    gpointer buf = nullptr;
+    GBytes* data = nullptr;
 
     // Retrieve the handle to a display device context for the client
     // area of the window.
@@ -56,7 +61,8 @@ int CaptureAnImage()
 
     if (!hdcMemDC)
     {
-        MessageBox(nullptr, "CreateCompatibleDC has failed", "Failed", MB_OK);
+        std::cout << "CreateCompatibleDC has failed" << std::endl;
+        //MessageBox(nullptr, "CreateCompatibleDC has failed", "Failed", MB_OK);
         goto done;
     }
 
@@ -66,7 +72,8 @@ int CaptureAnImage()
 
     if (!hbmScreen)
     {
-        MessageBox(nullptr, "CreateCompatibleBitmap Failed", "Failed", MB_OK);
+        std::cout << "CreateCompatibleBitmap Failed" << std::endl;
+        //MessageBox(nullptr, "CreateCompatibleBitmap Failed", "Failed", MB_OK);
         goto done;
     }
 
@@ -81,7 +88,8 @@ int CaptureAnImage()
         0, 0,
         SRCCOPY))
     {
-        MessageBox(nullptr, "BitBlt has failed", "Failed", MB_OK);
+        std::cout << "BitBlt has failed" << std::endl;
+        //MessageBox(nullptr, "BitBlt has failed", "Failed", MB_OK);
         goto done;
     }
 
@@ -103,12 +111,17 @@ int CaptureAnImage()
     bi.biClrUsed = 0;
     bi.biClrImportant = 0;
 
-    dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
+    // align to dword boundary
+    dwRowStride = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4;
+    dwBmpSize = dwRowStride * bmpScreen.bmHeight;
 
     // Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that
     // call HeapAlloc using a handle to the process's default heap. Therefore, GlobalAlloc and LocalAlloc
     // have greater overhead than HeapAlloc.
     hDIB = GlobalAlloc(GHND, dwBmpSize);
+    if (!hDIB) {
+        goto done;
+    }
     lpbitmap = (char*)GlobalLock(hDIB);
 
     // Gets the "bits" from the bitmap, and copies them into a buffer
@@ -118,36 +131,74 @@ int CaptureAnImage()
         lpbitmap,
         (BITMAPINFO*)&bi, DIB_RGB_COLORS);
 
+    // the data has a different organisation r<->b and top<->bottom
+    #ifdef WINCAP_DEBUG
+    std::cout << "g_malloc " << dwBmpSize
+              << " width " << bmpScreen.bmWidth
+              << " height " << bmpScreen.bmHeight
+              << " stride " << dwRowStride << std::endl;
+    #endif
+    buf = g_malloc(dwBmpSize);
+    if (!buf) {
+        GlobalUnlock(hDIB);
+        GlobalFree(hDIB);
+        goto done;
+    }
+    data = g_bytes_new_take(buf, dwBmpSize);
+    for (int y = 0; y < bmpScreen.bmHeight; ++y) {
+        DWORD yd = (bmpScreen.bmHeight-1) - y;
+        #ifdef WINCAP_DEBUG
+        std::cout << "row " << y << " yd " << yd << std::endl;
+        #endif
+        guchar* rows = (guchar*)lpbitmap + y * dwRowStride;
+        guchar* rowd = (guchar*)buf + yd * dwRowStride;
+        for (guint32 x = 0; x < dwRowStride; x += 4) {
+            //  windows   A BGR
+        	//  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
+            rowd[x+0] = rows[x+2];
+            rowd[x+1] = rows[x+1];
+            rowd[x+2] = rows[x+0];
+            rowd[x+3] = rows[x+3];
+        }
+    }
+    pixbuf = gdk_pixbuf_new_from_bytes(data
+            , GDK_COLORSPACE_RGB
+            , true
+            , 8
+            , bmpScreen.bmWidth
+            , bmpScreen.bmHeight
+            , dwRowStride);
+
     // A file is created, this is where we will save the screen capture.
-    hFile = CreateFile("captureqwsx.bmp",
-        GENERIC_WRITE,
-        0,
-        NULL,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL, NULL);
+    //hFile = CreateFile("captureqwsx.bmp",
+    //    GENERIC_WRITE,
+    //    0,
+    //    NULL,
+    //    CREATE_ALWAYS,
+    //    FILE_ATTRIBUTE_NORMAL, NULL);
 
     // Add the size of the headers to the size of the bitmap to get the total file size.
-    dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    //dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 
     // Offset to where the actual bitmap bits start.
-    bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
+    //bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
 
     // Size of the file.
-    bmfHeader.bfSize = dwSizeofDIB;
+    //bmfHeader.bfSize = dwSizeofDIB;
 
     // bfType must always be BM for Bitmaps.
-    bmfHeader.bfType = 0x4D42; // BM.
+    //bmfHeader.bfType = 0x4D42; // BM.
 
-    WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-    WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-    WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
+    //WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
+    //WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
+    //WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
 
     // Unlock and Free the DIB from the heap.
     GlobalUnlock(hDIB);
     GlobalFree(hDIB);
 
     // Close the handle for the file that was created.
-    CloseHandle(hFile);
+    //CloseHandle(hFile);
 
     // Clean up.
 done:
@@ -155,12 +206,12 @@ done:
     DeleteObject(hdcMemDC);
     ReleaseDC(NULL, hdcScreen);
 
-    return 0;
+    return pixbuf;
 }
 
 GdkPixbuf *
 WinCapture::get_pixbuf(GdkRectangle* rectangle)
 {
-    CaptureAnImage();
-    return nullptr;
+    GdkPixbuf *pixbuf = CaptureAnImage();
+    return pixbuf;
 }

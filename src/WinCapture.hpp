@@ -20,6 +20,8 @@
 
 #include "Capture.hpp"
 
+#undef WINCAP_DEBUG
+
 class WinCapture
 : public Capture
 {

@@ -73,34 +73,6 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     builder->get_widget_derived("tree_view", m_treeView, this);
     builder->get_widget_derived("preview", m_preview, this);
 
-//    auto menuBuilder = m_application->get_menu_builder();
-//    auto captureObj = menuBuilder->get_object("capture");
-//    auto captureItem = Glib::RefPtr<Gio::Menu>::cast_dynamic(captureObj);
-//    if (captureItem) {
-//        // capture
-//        auto captureAction{std::string("win.") + CAPTURE_ACTION_NAME};
-//        auto doCaptureItem = Gio::MenuItem::create("Capture", captureAction);
-//        captureItem->append_item(doCaptureItem);
-//        // delay
-//        auto delayAction{std::string("win.") + DELAY_ACTION_NAME};
-//        for (int sec : {3, Config::DEFAULT_DELAY, 10}) {
-//            auto name = Glib::ustring::sprintf("Delay %ds", sec);
-//            auto delayItem = Gio::MenuItem::create(name, delayAction);
-//            auto value = Glib::Variant<gint32>::create(sec);
-//            delayItem->set_action_and_target(delayAction, value);
-//            captureItem->append_item(delayItem);
-//        }
-//        // capture window
-//        auto captWindowAction{std::string("win.") + CAPTURE_WINDOW_ACTION_NAME};
-//        auto captWindowItem = Gio::MenuItem::create("Capture window", captWindowAction);
-//        //auto value = Glib::Variant<bool>::create(m_config->isCaptureWindow());
-//        //captWindowItem->set_action_and_target(captWindowAction, value);
-//        captureItem->append_item(captWindowItem);
-//    }
-//    else {
-//        std::cout << "NomadWin::NomadWin cannot find capture selection in menu!" << std::endl;
-//    }
-//
     show_all_children();
 }
 

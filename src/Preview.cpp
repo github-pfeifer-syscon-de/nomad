@@ -82,7 +82,9 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
 , m_scaled{}
 {
     m_svg = std::make_shared<RSvg>();
-    auto f = Gio::File::create_for_path(Glib::filename_from_utf8("/home/rpf/Downloads/arrow-up-svgrepo-com.svg"));
+    std::string home = Glib::get_home_dir();
+    Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
+    auto f = Gio::File::create_for_path(Glib::filename_from_utf8(fullPath));
     if (m_svg->from_file(f)) {
         std::clog << "svg/debug: SVG loaded successfully." << std::endl;
         double svgWidth,svgHeight;

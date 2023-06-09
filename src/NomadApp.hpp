@@ -22,7 +22,7 @@
 
 #include "NomadWin.hpp"
 
-#undef NOMAD_DEBUG
+#define NOMAD_DEBUG
 
 /*
  * get the application up and running

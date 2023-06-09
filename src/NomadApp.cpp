@@ -162,8 +162,15 @@ NomadApp::on_startup()
 
 int main(int argc, char** argv)
 {
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::main" << std::endl;
+    #endif
+
     setlocale(LC_ALL, "");      // we depend on locale
     NomadApp app(argc, argv);
 
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::main run" << std::endl;
+    #endif
     return app.run();
 }

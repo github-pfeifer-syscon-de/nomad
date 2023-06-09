@@ -39,7 +39,7 @@ AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])
 AX_CHECK_SED()
 
 if test "$host_os" = "mingw32" ; then
-    AC_SUBST(EXTRA_LDFLAGS, "-mwindows")
+     AC_SUBST(EXTRA_LDFLAGS, "")   dnl  -mwindows
 fi
 
 
