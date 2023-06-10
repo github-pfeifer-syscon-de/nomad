@@ -34,6 +34,12 @@ nomad_SOURCES = resources.c \
 	NomadTreeView.hpp \
 	Capture.hpp \
 	Capture.cpp \
+	Shape.hpp \
+	Shape.cpp \
+	CairoShape.hpp \
+	CairoShape.cpp \
+	SvgShape.hpp \
+	SvgShape.cpp \
 	Preview.cpp \
 	Preview.hpp
 

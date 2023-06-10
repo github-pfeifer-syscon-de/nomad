@@ -91,10 +91,6 @@ NomadWin::timeout()
         if (buf) {
             Glib::RefPtr<Gdk::Pixbuf> pixbuf = Glib::wrap(buf);
             m_preview->setPixbuf(pixbuf);
-			NomadFileChooser file_chooser(*this, true, "png");
-			if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-                pixbuf->save(file_chooser.get_filename(), "png");
-			}
         }
         else {
             std::cout << "Capture failed!" << std::endl;
@@ -160,6 +156,43 @@ NomadWin::activate_actions()
             }
 		});
     add_action(delay_action);
+    auto save_action = Gio::SimpleAction::create("save");
+    save_action->signal_activate().connect (
+        [this] (const Glib::VariantBase& value)  {
+            try {
+                if (m_preview->getPixbuf()) {
+                    NomadFileChooser file_chooser(*this, true, "png");
+                    if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
+                        if (!m_preview->save(file_chooser.get_filename())) {
+                            show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
+                        }
+                    }
+                }
+            }
+            catch (const Glib::Error &ex) {
+                show_error(Glib::ustring::sprintf("Unable save file %s", ex.what()));
+            }
+        });
+    add_action(save_action);
+    auto load_action = Gio::SimpleAction::create("load");
+    load_action->signal_activate().connect (
+        [this] (const Glib::VariantBase& value)  {
+            try {
+                NomadFileChooser file_chooser(*this, false, "svg");
+                if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
+                    //std::string home = Glib::get_home_dir();
+                    //Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
+                    //Glib::filename_from_utf8(fullPath);
+                    if (!m_preview->load(file_chooser.get_file())) {
+                        show_error(Glib::ustring::sprintf("Unable to load file %s", file_chooser.get_filename()));
+                    }
+                }
+            }
+            catch (const Glib::Error &ex) {
+                show_error(Glib::ustring::sprintf("Unable load file %s", ex.what()));
+            }
+        });
+    add_action(load_action);
 }
 
 

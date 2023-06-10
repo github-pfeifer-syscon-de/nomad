@@ -19,22 +19,9 @@
 #pragma once
 
 #include <gtkmm.h>
-#include <librsvg/rsvg.h>
 
 class NomadWin;
-
-class RSvg {
-public:
-    RSvg();
-    explicit RSvg(const RSvg&) = delete;
-    virtual ~RSvg();
-
-    bool from_file(const Glib::RefPtr<Gio::File>& f);
-    bool pixel_size(gdouble* svgWidth, gdouble* svgHeight);
-    bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height);
-private:
-    RsvgHandle* m_handle;
-};
+class Shape;
 
 class Preview
 : public Gtk::DrawingArea
@@ -44,15 +31,26 @@ public:
     virtual ~Preview() = default;
 
     void setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf);
-    bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
+    Glib::RefPtr<Gdk::Pixbuf> getPixbuf();
+
+    bool load(const Glib::RefPtr<Gio::File>& f);
+    bool save(const Glib::ustring& file);
+
 protected:
     void loadSVG(std::string const& filename);
+    bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
+    bool on_motion_notify_event(GdkEventMotion* motion_event) override;
+    bool on_button_press_event(GdkEventButton* event) override;
+    bool on_button_release_event(GdkEventButton* event) override;
 
 private:
     NomadWin* m_nomadWin;
-    std::shared_ptr<RSvg> m_svg;
+    std::list<std::shared_ptr<Shape>> m_shapes;
+    std::shared_ptr<Shape> m_selected;
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
+    double m_relX{0.0};
+    double m_relY{0.0};
 };
 
 

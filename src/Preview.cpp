@@ -21,59 +21,8 @@
 #include <istream>
 
 #include "Preview.hpp"
+#include "SvgShape.hpp"
 #include "NomadWin.hpp"
-
-RSvg::RSvg()
-: m_handle{nullptr}
-{
-    m_handle = rsvg_handle_new_with_flags(RSVG_HANDLE_FLAGS_NONE);
-}
-
-RSvg::~RSvg()
-{
-    g_object_unref(m_handle);
-}
-
-bool
-RSvg::from_file(const Glib::RefPtr<Gio::File>& f)
-{
-    rsvg_handle_set_base_uri(m_handle, f->get_path().c_str());
-    auto fs = f->read();
-    GError* pError = nullptr;
-    // rsvg_new_from_gfile might be an option but for the moment keep this generic
-    gboolean result = rsvg_handle_read_stream_sync(m_handle, G_INPUT_STREAM(fs.get()->gobj()), nullptr, &pError);
-    fs->close();
-    if (!result) {
-        std::string msg("Unable to load " + f->get_path());
-        if (pError) {
-            msg = msg + " error " + pError->message;
-            g_error_free(pError);
-        }
-        std::clog << "RSvg::from_file " << msg << std::endl;
-        //throw std::runtime_error(msg);
-    }
-    return result;
-}
-
-bool
-RSvg::pixel_size(gdouble* svgWidth, gdouble* svgHeight)
-{
-    return rsvg_handle_get_intrinsic_size_in_pixels(m_handle, svgWidth, svgHeight);
-}
-
-bool
-RSvg::render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height)
-{
-    RsvgRectangle view;
-    view.x = 0.0;
-    view.y = 0.0;
-    //gdouble w,h;
-    //pixel_size(&w, &h);
-    view.width = width;
-    view.height = height;
-    return rsvg_handle_render_document(m_handle, cairoCtx->cobj(), &view, nullptr);
-}
-
 
 Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::DrawingArea(cobject)
@@ -81,27 +30,92 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
 , m_pixbuf{}
 , m_scaled{}
 {
-    m_svg = std::make_shared<RSvg>();
-    std::string home = Glib::get_home_dir();
-    Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
-    auto f = Gio::File::create_for_path(Glib::filename_from_utf8(fullPath));
-    if (m_svg->from_file(f)) {
-        std::clog << "svg/debug: SVG loaded successfully." << std::endl;
-        double svgWidth,svgHeight;
-        if (m_svg->pixel_size(&svgWidth, &svgHeight)) {
-            std::clog << "svg/debug: "
-                      << " width " << svgWidth
-                      << " height " << svgHeight << std::endl;
-        }
-        else {
-            std::clog << "svg/debug no size! " << std::endl;
-        }
-    }
-    else {
-        std::clog << "svg/debug: error loading svg." << std::endl;
-    }
+    add_events(Gdk::EventMask::BUTTON_PRESS_MASK
+            | Gdk::EventMask::BUTTON_RELEASE_MASK
+            | Gdk::EventMask::BUTTON_MOTION_MASK);
+
 }
 
+bool
+Preview::load(const Glib::RefPtr<Gio::File>& f)
+{
+    auto svg = std::make_shared<SvgShape>();
+    if (svg->from_file(f)) {
+        std::clog << "svg/debug: SVG loaded successfully." << std::endl;
+        svg->setScale(0.1);
+        m_shapes.push_back(svg);
+        return true;
+    }
+    else {
+        std::clog << "svg/debug: error loading " << f->get_path() << " svg." << std::endl;
+    }
+    return false;
+}
+
+bool
+Preview::on_motion_notify_event(GdkEventMotion* motion_event)
+{
+    bool btn1 = (motion_event->state  & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
+    if (btn1) {
+        if (m_selected && m_scaled) {
+            Gdk::Rectangle old;
+            old.set_x(m_selected->toRealX(m_scaled->get_width()));
+            old.set_y(m_selected->toRealX(m_scaled->get_height()));
+            old.set_width(m_selected->toRealWidth(m_scaled->get_width()));
+            old.set_height(m_selected->toRealHeight(m_scaled->get_height()));
+            double relX = (motion_event->x - m_relX) / static_cast<double>(m_scaled->get_width());
+            double relY = (motion_event->y - m_relY) / static_cast<double>(m_scaled->get_height());
+            m_selected->setRelPosition(relX, relY);
+            Gdk::Rectangle next;
+            next.set_x(m_selected->toRealX(m_scaled->get_width()));
+            next.set_y(m_selected->toRealX(m_scaled->get_height()));
+            next.set_width(m_selected->toRealWidth(m_scaled->get_width()));
+            next.set_height(m_selected->toRealHeight(m_scaled->get_height()));
+            next.join(old);
+            queue_draw_area(std::max(next.get_x()-20,0), std::max(next.get_y()-20,0),
+                    next.get_width() + 40, next.get_height() + 40);   // draw only required
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+bool
+Preview::on_button_release_event(GdkEventButton* event)
+{
+    bool btn1 = (event->button == 1);
+    if (btn1 && m_selected) {
+        m_selected.reset();
+        return TRUE;
+    }
+    return FALSE;
+}
+
+bool
+Preview::on_button_press_event(GdkEventButton* event)
+{
+    bool btn1 = (event->button == 1);
+    if (btn1 && m_scaled) {
+        double mouseX = event->x;
+        double mouseY = event->y;
+        for (auto shape : m_shapes) {
+            int x = shape->toRealX(m_scaled->get_width());
+            int y = shape->toRealY(m_scaled->get_height());
+            if (mouseX >= x && mouseY >= y) {
+                int w = shape->toRealWidth(m_scaled->get_width());
+                int h = shape->toRealHeight(m_scaled->get_height());
+                if (mouseX < x + w && mouseY < y + h) {
+                    m_relX = (mouseX - x);
+                    m_relY = (mouseY - y);
+                    m_selected = shape;
+                    break;
+                }
+            }
+        }
+    }
+    //g_warning("button: %dx%d btn:0x%04x", event->x, event->y, event->button);
+    return TRUE;
+}
 
 void
 Preview::setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf)
@@ -109,6 +123,34 @@ Preview::setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf)
     m_pixbuf = pixbuf;
     m_scaled.reset();
     queue_draw();
+}
+
+Glib::RefPtr<Gdk::Pixbuf>
+Preview::getPixbuf()
+{
+    return m_pixbuf;
+}
+
+bool
+Preview::save(const Glib::ustring& file)
+{
+    if (m_pixbuf) {
+        Cairo::RefPtr<Cairo::ImageSurface> outpixmap = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32,
+            m_pixbuf->get_width()
+            , m_pixbuf->get_height());
+        {
+            Cairo::RefPtr<Cairo::Context> cairoCtx = Cairo::Context::create(outpixmap);
+            Gdk::Cairo::set_source_pixbuf(cairoCtx, m_pixbuf, 0, 0);
+            cairoCtx->rectangle(0, 0, m_pixbuf->get_width(), m_pixbuf->get_height());
+            cairoCtx->fill();
+            for (auto shape : m_shapes) {
+                shape->render(cairoCtx, m_pixbuf->get_width(), m_pixbuf->get_height());
+            }
+        }
+        outpixmap->write_to_png(file);
+        return true;
+    }
+    return false;
 }
 
 bool
@@ -133,9 +175,10 @@ Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
         Gdk::Cairo::set_source_pixbuf(cairoCtx, m_scaled, 0, 0);
         cairoCtx->rectangle(0, 0, m_scaled->get_width(), m_scaled->get_height());
         cairoCtx->fill();
-    }
-    if (m_svg) {
-        m_svg->render(cairoCtx, get_width(), get_height());
+        for (auto shape : m_shapes) {
+            //get_width() / 2, get_height() / 2,
+            shape->render(cairoCtx, m_scaled->get_width(), m_scaled->get_height());
+        }
     }
     return true;
 }
