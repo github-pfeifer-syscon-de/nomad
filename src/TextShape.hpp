@@ -18,25 +18,18 @@
 
 #pragma once
 
-#include <gtkmm.h>
-
-class Shape {
+class TextShape
+: public Shape
+{
 public:
-    Shape() = default;
-    explicit Shape(const Shape& orig) = delete;
-    virtual ~Shape() = default;
+    TextShape();
+    explicit TextShape(const TextShape& orig) = delete;
+    virtual ~TextShape() = default;
 
-    virtual bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) = 0;
-    void setRelPosition(double posX, double posY);     // relative position 0..1
-    void setScale(double scale);
-    double getScale();
-    int toRealX(int width);
-    int toRealY(int height);
-    int toRealWidth(int width);
-    int toRealHeight(int height);
+    void setText(const Glib::ustring& text);
+    bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) override;
+
 private:
-    double m_relPosX{0.0};
-    double m_relPosY{0.0};
-    double m_scale{1.0};
+    Glib::ustring m_text;
 };
 

@@ -16,27 +16,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <iostream>
 
-#include <gtkmm.h>
+#include "TextShape.hpp"
+#include "Shape.hpp"
 
-class Shape {
-public:
-    Shape() = default;
-    explicit Shape(const Shape& orig) = delete;
-    virtual ~Shape() = default;
+TextShape::TextShape()
+: Shape()
+{
+}
 
-    virtual bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) = 0;
-    void setRelPosition(double posX, double posY);     // relative position 0..1
-    void setScale(double scale);
-    double getScale();
-    int toRealX(int width);
-    int toRealY(int height);
-    int toRealWidth(int width);
-    int toRealHeight(int height);
-private:
-    double m_relPosX{0.0};
-    double m_relPosY{0.0};
-    double m_scale{1.0};
-};
+void
+TextShape::setText(
+        const Glib::ustring& text)
+{
+    m_text = text;
+}
 
+bool
+TextShape::render(
+        const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+        int width,
+        int height)
+{
+    int x = toRealX(width);
+    int y = toRealY(height);
+    cairoCtx->move_to(x, y);
+    Cairo::TextExtents extends;
+    cairoCtx->get_text_extents(m_text, extends);
+    std::cout << "Text"
+              << " width " <<  extends.width
+              << " height " <<  extends.height
+              << std::endl;
+    cairoCtx->set_font_size(getScale() * 10.0);
+    cairoCtx->show_text(m_text);
+    cairoCtx->stroke();
+    return true;
+}

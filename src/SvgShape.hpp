@@ -32,7 +32,7 @@ public:
     virtual ~SvgShape();
 
     bool from_file(const Glib::RefPtr<Gio::File>& f);
-    bool pixel_size(gdouble* svgWidth, gdouble* svgHeight) override;
+    bool pixel_size(gdouble* svgWidth, gdouble* svgHeight);
     bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) override;
 private:
     RsvgHandle* m_handle;

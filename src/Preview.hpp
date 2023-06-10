@@ -42,6 +42,8 @@ protected:
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
     bool on_button_press_event(GdkEventButton* event) override;
     bool on_button_release_event(GdkEventButton* event) override;
+    void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+        const Glib::RefPtr<Gdk::Pixbuf> pixbuf);
 
 private:
     NomadWin* m_nomadWin;

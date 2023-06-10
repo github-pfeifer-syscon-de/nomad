@@ -85,7 +85,7 @@ NomadWin::timeout()
 #else
         X11Capture capture;
 #endif
-        GdkRectangle re(0,0, 1920,1080);
+        //GdkRectangle re(0,0, 1920,1080);
         capture.set_take_window_shot(true);
         GdkPixbuf* buf = capture.get_pixbuf(nullptr);    // &re
         if (buf) {

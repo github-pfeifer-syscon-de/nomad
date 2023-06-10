@@ -41,7 +41,6 @@ public:
     bool timeout();
 protected:
 private:
-    void build_menu();
     void activate_actions();
 
     NomadApp* m_application;

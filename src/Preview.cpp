@@ -68,12 +68,15 @@ Preview::on_motion_notify_event(GdkEventMotion* motion_event)
             m_selected->setRelPosition(relX, relY);
             Gdk::Rectangle next;
             next.set_x(m_selected->toRealX(m_scaled->get_width()));
-            next.set_y(m_selected->toRealX(m_scaled->get_height()));
+            next.set_y(m_selected->toRealY(m_scaled->get_height()));
             next.set_width(m_selected->toRealWidth(m_scaled->get_width()));
             next.set_height(m_selected->toRealHeight(m_scaled->get_height()));
             next.join(old);
-            queue_draw_area(std::max(next.get_x()-20,0), std::max(next.get_y()-20,0),
-                    next.get_width() + 40, next.get_height() + 40);   // draw only required
+            queue_draw_area(
+                    std::max(next.get_x()-20, 0),
+                    std::max(next.get_y()-20, 0),
+                    next.get_width() + 40,
+                    next.get_height() + 40);   // draw only required
             return TRUE;
         }
     }
@@ -83,11 +86,10 @@ Preview::on_motion_notify_event(GdkEventMotion* motion_event)
 bool
 Preview::on_button_release_event(GdkEventButton* event)
 {
-    bool btn1 = (event->button == 1);
-    if (btn1 && m_selected) {
-        m_selected.reset();
-        return TRUE;
-    }
+//    bool btn1 = (event->button == 1);
+//    if (btn1 && m_selected) {
+//        return TRUE;
+//    }
     return FALSE;
 }
 
@@ -96,6 +98,7 @@ Preview::on_button_press_event(GdkEventButton* event)
 {
     bool btn1 = (event->button == 1);
     if (btn1 && m_scaled) {
+        m_selected.reset();
         double mouseX = event->x;
         double mouseY = event->y;
         for (auto shape : m_shapes) {
@@ -131,6 +134,18 @@ Preview::getPixbuf()
     return m_pixbuf;
 }
 
+void
+Preview::render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+        const Glib::RefPtr<Gdk::Pixbuf> pixbuf)
+{
+    Gdk::Cairo::set_source_pixbuf(cairoCtx, pixbuf, 0, 0);
+    cairoCtx->rectangle(0, 0, pixbuf->get_width(), pixbuf->get_height());
+    cairoCtx->fill();
+    for (auto shape : m_shapes) {
+        shape->render(cairoCtx, pixbuf->get_width(), pixbuf->get_height());
+    }
+}
+
 bool
 Preview::save(const Glib::ustring& file)
 {
@@ -140,12 +155,7 @@ Preview::save(const Glib::ustring& file)
             , m_pixbuf->get_height());
         {
             Cairo::RefPtr<Cairo::Context> cairoCtx = Cairo::Context::create(outpixmap);
-            Gdk::Cairo::set_source_pixbuf(cairoCtx, m_pixbuf, 0, 0);
-            cairoCtx->rectangle(0, 0, m_pixbuf->get_width(), m_pixbuf->get_height());
-            cairoCtx->fill();
-            for (auto shape : m_shapes) {
-                shape->render(cairoCtx, m_pixbuf->get_width(), m_pixbuf->get_height());
-            }
+            render(cairoCtx, m_pixbuf);
         }
         outpixmap->write_to_png(file);
         return true;
@@ -170,15 +180,7 @@ Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
             //          << " height " << scaledHeight << std::endl;
             m_scaled = m_pixbuf->scale_simple(scaledWidth, scaledHeight, Gdk::InterpType::INTERP_BILINEAR);
         }
-        //int xoffs = std::max(get_width() - static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * scale) / 2, 0);
-        //int yoffs = std::max(get_height() - static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * scale) / 2, 0);
-        Gdk::Cairo::set_source_pixbuf(cairoCtx, m_scaled, 0, 0);
-        cairoCtx->rectangle(0, 0, m_scaled->get_width(), m_scaled->get_height());
-        cairoCtx->fill();
-        for (auto shape : m_shapes) {
-            //get_width() / 2, get_height() / 2,
-            shape->render(cairoCtx, m_scaled->get_width(), m_scaled->get_height());
-        }
+        render(cairoCtx, m_scaled);
     }
     return true;
 }
