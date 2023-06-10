@@ -38,6 +38,8 @@ nomad_SOURCES = resources.c \
 	Shape.cpp \
 	CairoShape.hpp \
 	CairoShape.cpp \
+	TextShape.hpp \
+	TextShape.cpp \
 	SvgShape.hpp \
 	SvgShape.cpp \
 	Preview.cpp \

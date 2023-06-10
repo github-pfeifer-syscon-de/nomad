@@ -35,7 +35,7 @@ public:
 
     bool load(const Glib::RefPtr<Gio::File>& f);
     bool save(const Glib::ustring& file);
-
+    void addText(const Glib::ustring& text);
 protected:
     void loadSVG(std::string const& filename);
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;

@@ -23,6 +23,7 @@
 #include "Preview.hpp"
 #include "SvgShape.hpp"
 #include "NomadWin.hpp"
+#include "TextShape.hpp"
 
 Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::DrawingArea(cobject)
@@ -50,6 +51,14 @@ Preview::load(const Glib::RefPtr<Gio::File>& f)
         std::clog << "svg/debug: error loading " << f->get_path() << " svg." << std::endl;
     }
     return false;
+}
+
+void
+Preview::addText(const Glib::ustring& text)
+{
+    auto textShape = std::make_shared<TextShape>();
+    textShape->setText(text);
+    m_shapes.push_back(textShape);
 }
 
 bool

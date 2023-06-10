@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "Shape.hpp"
+
 class TextShape
 : public Shape
 {
@@ -27,7 +29,10 @@ public:
     virtual ~TextShape() = default;
 
     void setText(const Glib::ustring& text);
-    bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) override;
+    bool render(
+            const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+            int width,
+            int height) override;
 
 private:
     Glib::ustring m_text;

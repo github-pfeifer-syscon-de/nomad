@@ -72,9 +72,51 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
 
     builder->get_widget_derived("tree_view", m_treeView, this);
     builder->get_widget_derived("preview", m_preview, this);
+    builder->get_widget("buttons", m_buttons);
+
+    auto btn_text = Gtk::make_managed<Gtk::Button>();
+    btn_text->set_image_from_icon_name("gtk-edit");
+    btn_text->signal_clicked().connect([this] () {
+        Glib::ustring text = ask_for("Text");
+        if (!text.empty()) {
+            m_preview->addText(text);
+        }
+    });
+    m_buttons->add(*btn_text);
 
     show_all_children();
 }
+
+Glib::ustring
+NomadWin::ask_for(const Glib::ustring& labelText)
+{
+	std::string name;
+	auto builder = Gtk::Builder::create();
+    try {
+        builder->add_from_resource(m_application->get_resource_base_path() + "/name-dlg.ui");
+		Gtk::Dialog* dlg;
+        builder->get_widget("dlg", dlg);
+		Gtk::Entry* text;
+        builder->get_widget("name", text);
+		Gtk::Label* label;
+        builder->get_widget("label", label);
+		label->set_text(labelText);
+	    int result = dlg->run();
+		switch (result) {
+			case Gtk::RESPONSE_OK:
+				name = text->get_text();
+				break;
+			default:
+				break;
+		}
+		delete dlg;
+    }
+    catch (const Glib::Error &ex) {
+        show_error(Glib::ustring::sprintf("Unable to load name-dlg: %s",  ex.what()));
+    }
+	return name;
+}
+
 
 bool
 NomadWin::timeout()

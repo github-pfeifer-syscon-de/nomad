@@ -26,7 +26,10 @@ public:
     explicit Shape(const Shape& orig) = delete;
     virtual ~Shape() = default;
 
-    virtual bool render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int height) = 0;
+    virtual bool render(
+            const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+            int width,
+            int height) = 0;
     void setRelPosition(double posX, double posY);     // relative position 0..1
     void setScale(double scale);
     double getScale();
@@ -35,8 +38,8 @@ public:
     int toRealWidth(int width);
     int toRealHeight(int height);
 private:
-    double m_relPosX{0.0};
-    double m_relPosY{0.0};
+    double m_relPosX{0.5};
+    double m_relPosY{0.5};
     double m_scale{1.0};
 };
 

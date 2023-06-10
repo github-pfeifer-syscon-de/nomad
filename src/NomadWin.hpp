@@ -40,12 +40,14 @@ public:
     void apply_font(bool defaultFont);
     bool timeout();
 protected:
+    Glib::ustring ask_for(const Glib::ustring& labelText);
 private:
     void activate_actions();
 
     NomadApp* m_application;
     NomadTreeView* m_treeView;
     Preview* m_preview;
+    Gtk::ButtonBox* m_buttons;
     sigc::connection m_timer;
     std::shared_ptr<Config> m_config;
     static constexpr auto CAPTURE_ACTION_NAME = "capture";

@@ -17,6 +17,7 @@
  */
 
 #include <iostream>
+#include <cairomm/cairomm.h>
 
 #include "TextShape.hpp"
 #include "Shape.hpp"
@@ -44,12 +45,18 @@ TextShape::render(
     cairoCtx->move_to(x, y);
     Cairo::TextExtents extends;
     cairoCtx->get_text_extents(m_text, extends);
-    std::cout << "Text"
-              << " width " <<  extends.width
-              << " height " <<  extends.height
-              << std::endl;
-    cairoCtx->set_font_size(getScale() * 10.0);
+    //std::cout << "Text"
+    //          << " width " <<  extends.width
+    //          << " height " <<  extends.height
+    //          << std::endl;
+    cairoCtx->set_source_rgb(0.8, 0.8, 0.8);
+    auto font =
+        Cairo::ToyFontFace::create("sans-serif",
+                               Cairo::FontSlant::FONT_SLANT_NORMAL,
+                               Cairo::FontWeight::FONT_WEIGHT_NORMAL);
+    cairoCtx->set_font_face(font);
+    cairoCtx->set_font_size(getScale() * width / 400.0 * 10.0);
     cairoCtx->show_text(m_text);
-    cairoCtx->stroke();
+    //cairoCtx->stroke();
     return true;
 }
