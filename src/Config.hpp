@@ -38,7 +38,24 @@ public:
     void setCaptureWindow(bool captureWindow) {
         m_captureWindow = captureWindow;
     }
-
+    Gdk::Color getBackgroundColor() {
+        return m_background;
+    }
+    void setBackgroundColor(const Gdk::Color& _background) {
+        m_background = _background;
+    }
+    Gdk::Color getForegroundColor() {
+        return m_foreground;
+    }
+    void setForegroundColor(const Gdk::Color& foreground) {
+        m_foreground = foreground;
+    }
+    double getTextSize() {
+        return m_textSize;
+    }
+    void setTextSize(double textSize) {
+        m_textSize = textSize;
+    }
 protected:
     Glib::ustring get_config_name();
     void read_config();
@@ -46,14 +63,20 @@ protected:
 private:
     int m_delaySec{DEFAULT_DELAY};
     bool m_captureWindow{true};
+    Gdk::Color m_background;
+    Gdk::Color m_foreground;
+    double m_textSize{10.0};
     Glib::KeyFile* m_config;
     //Glib::Property<Glib::ustring> property_delay_;
     //Glib::Property<bool> property_captWindow_;
 
+    static constexpr auto CONF_FILE{"nomad.conf"};
     static constexpr auto MAIN_GRP{"main"};
     static constexpr auto DELAY_CONF{"deplaySec"};
     static constexpr auto CAPTURE_WINDOW_CONF{"captureWindow"};
-    static constexpr auto CONF_FILE{"nomad.conf"};
+    static constexpr auto BACKGROUNDCOLOR_CONF{"backgroudColor"};
+    static constexpr auto FOREGROUNDCOLOR_CONF{"foregroudColor"};
+    static constexpr auto TEXTSIZE_CONF{"textSize"};
 };
 
 

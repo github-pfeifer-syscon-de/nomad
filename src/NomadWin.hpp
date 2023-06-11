@@ -40,7 +40,9 @@ public:
     void apply_font(bool defaultFont);
     bool timeout();
 protected:
-    Glib::ustring ask_for(const Glib::ustring& labelText);
+    bool ask_text(TextInfo& text);
+    bool ask_size(std::array<int,2>& size, Gdk::Color& background);
+
 private:
     void activate_actions();
 

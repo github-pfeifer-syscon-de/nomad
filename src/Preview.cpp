@@ -54,12 +54,26 @@ Preview::load(const Glib::RefPtr<Gio::File>& f)
 }
 
 void
-Preview::addText(const Glib::ustring& text)
+Preview::addText(const TextInfo& text)
 {
     auto textShape = std::make_shared<TextShape>();
     textShape->setText(text);
     m_shapes.push_back(textShape);
 }
+
+void
+Preview::create(std::array<int,2> size, const Gdk::Color& background)
+{
+    m_pixbuf = Gdk::Pixbuf::create(
+            Gdk::Colorspace::COLORSPACE_RGB
+            , false
+            , 8
+            , size[0]
+            , size[1]);
+    m_pixbuf->fill(background.get_pixel());
+    queue_draw();
+}
+
 
 bool
 Preview::on_motion_notify_event(GdkEventMotion* motion_event)

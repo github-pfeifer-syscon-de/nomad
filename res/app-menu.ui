@@ -6,6 +6,10 @@
       <attribute translatable="yes" name="label">File</attribute>
       <section>
         <item>
+          <attribute translatable="yes" name="label">New</attribute>
+          <attribute name="action">win.new</attribute>
+        </item>
+        <item>
           <attribute translatable="yes" name="label">Load</attribute>
           <attribute name="action">win.load</attribute>
         </item>

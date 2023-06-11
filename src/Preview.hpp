@@ -22,6 +22,7 @@
 
 class NomadWin;
 class Shape;
+class TextInfo;
 
 class Preview
 : public Gtk::DrawingArea
@@ -35,7 +36,9 @@ public:
 
     bool load(const Glib::RefPtr<Gio::File>& f);
     bool save(const Glib::ustring& file);
-    void addText(const Glib::ustring& text);
+    void addText(const TextInfo& text);
+    void create(std::array<int,2> size, const Gdk::Color& background);
+
 protected:
     void loadSVG(std::string const& filename);
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;

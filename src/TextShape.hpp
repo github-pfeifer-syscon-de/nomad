@@ -18,7 +18,55 @@
 
 #pragma once
 
+#include <cairomm/cairomm.h>
+
 #include "Shape.hpp"
+
+class TextInfo
+{
+public:
+    TextInfo() = default;
+    TextInfo(const TextInfo& other) = default;
+    virtual ~TextInfo() = default;
+
+    Glib::ustring getText() {
+        return m_text;
+    }
+    void setText(const Glib::ustring& text) {
+        m_text = text;
+    }
+    Gdk::Color getColor() {
+        return m_color;
+    }
+    void setColor(const Gdk::Color& color) {
+        m_color = color;
+    }
+    Glib::ustring getFont() {
+        return m_font;
+    }
+    void setFont(Glib::ustring font) {
+        m_font = font;
+    }
+    Cairo::FontSlant getSlant() {
+        return m_slant;
+    }
+    Cairo::FontWeight getWeight() {
+        return m_weight;
+    }
+    double getSize() {
+        return m_size;
+    }
+    void setSize(double size) {
+        m_size = size;
+    }
+private:
+    Glib::ustring m_text;
+    Gdk::Color m_color;
+    Glib::ustring m_font{"sans-serif"};
+    Cairo::FontSlant m_slant{Cairo::FontSlant::FONT_SLANT_NORMAL};
+    Cairo::FontWeight m_weight{Cairo::FontWeight::FONT_WEIGHT_NORMAL};
+    double m_size{10.0};
+};
 
 class TextShape
 : public Shape
@@ -28,13 +76,13 @@ public:
     explicit TextShape(const TextShape& orig) = delete;
     virtual ~TextShape() = default;
 
-    void setText(const Glib::ustring& text);
+    void setText(const TextInfo& text);
     bool render(
             const Cairo::RefPtr<Cairo::Context>& cairoCtx,
             int width,
             int height) override;
 
 private:
-    Glib::ustring m_text;
+    TextInfo m_text;
 };
 

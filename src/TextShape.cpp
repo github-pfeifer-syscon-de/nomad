@@ -28,8 +28,7 @@ TextShape::TextShape()
 }
 
 void
-TextShape::setText(
-        const Glib::ustring& text)
+TextShape::setText(const TextInfo& text)
 {
     m_text = text;
 }
@@ -44,19 +43,22 @@ TextShape::render(
     int y = toRealY(height);
     cairoCtx->move_to(x, y);
     Cairo::TextExtents extends;
-    cairoCtx->get_text_extents(m_text, extends);
+    cairoCtx->get_text_extents(m_text.getText(), extends);
     //std::cout << "Text"
     //          << " width " <<  extends.width
     //          << " height " <<  extends.height
     //          << std::endl;
-    cairoCtx->set_source_rgb(0.8, 0.8, 0.8);
+    cairoCtx->set_source_rgb(
+            m_text.getColor().get_red_p(),
+            m_text.getColor().get_green_p(),
+            m_text.getColor().get_blue_p());
     auto font =
-        Cairo::ToyFontFace::create("sans-serif",
-                               Cairo::FontSlant::FONT_SLANT_NORMAL,
-                               Cairo::FontWeight::FONT_WEIGHT_NORMAL);
+        Cairo::ToyFontFace::create(m_text.getFont(),
+                               m_text.getSlant(),
+                               m_text.getWeight());
     cairoCtx->set_font_face(font);
-    cairoCtx->set_font_size(getScale() * width / 400.0 * 10.0);
-    cairoCtx->show_text(m_text);
+    cairoCtx->set_font_size(getScale() * width / 400.0 * m_text.getSize());
+    cairoCtx->show_text(m_text.getText());
     //cairoCtx->stroke();
     return true;
 }

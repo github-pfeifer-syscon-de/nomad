@@ -22,6 +22,7 @@
 #include "NomadWin.hpp"
 #include "NomadApp.hpp"
 #include "Capture.hpp"
+#include "TextShape.hpp"
 #ifdef __WIN32__
 #include "WinCapture.hpp"
 #else
@@ -77,8 +78,8 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     auto btn_text = Gtk::make_managed<Gtk::Button>();
     btn_text->set_image_from_icon_name("gtk-edit");
     btn_text->signal_clicked().connect([this] () {
-        Glib::ustring text = ask_for("Text");
-        if (!text.empty()) {
+        TextInfo text;
+        if (ask_text(text)) {
             m_preview->addText(text);
         }
     });
@@ -87,24 +88,33 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     show_all_children();
 }
 
-Glib::ustring
-NomadWin::ask_for(const Glib::ustring& labelText)
+bool
+NomadWin::ask_text(TextInfo& textInfo)
 {
-	std::string name;
+	bool ret = false;
 	auto builder = Gtk::Builder::create();
     try {
-        builder->add_from_resource(m_application->get_resource_base_path() + "/name-dlg.ui");
+        builder->add_from_resource(m_application->get_resource_base_path() + "/text-dlg.ui");
 		Gtk::Dialog* dlg;
         builder->get_widget("dlg", dlg);
 		Gtk::Entry* text;
-        builder->get_widget("name", text);
-		Gtk::Label* label;
-        builder->get_widget("label", label);
-		label->set_text(labelText);
+        builder->get_widget("text", text);
+        text->set_text(textInfo.getText());
+        Gtk::ColorButton* color;
+        builder->get_widget("color", color);
+        color->set_color(m_config->getForegroundColor());
+        Gtk::SpinButton* size;
+        builder->get_widget("size", size);
+        size->set_value(m_config->getTextSize());
 	    int result = dlg->run();
 		switch (result) {
 			case Gtk::RESPONSE_OK:
-				name = text->get_text();
+				textInfo.setText(text->get_text());
+                textInfo.setColor(color->get_color());
+                textInfo.setSize(size->get_value());
+                m_config->setForegroundColor(color->get_color());
+                m_config->setTextSize(size->get_value());
+                ret = true;
 				break;
 			default:
 				break;
@@ -114,9 +124,45 @@ NomadWin::ask_for(const Glib::ustring& labelText)
     catch (const Glib::Error &ex) {
         show_error(Glib::ustring::sprintf("Unable to load name-dlg: %s",  ex.what()));
     }
-	return name;
+	return ret;
 }
 
+bool
+NomadWin::ask_size(std::array<int,2>& size, Gdk::Color& background)
+{
+    bool ret = false;
+	auto builder = Gtk::Builder::create();
+    try {
+        builder->add_from_resource(m_application->get_resource_base_path() + "/size-dlg.ui");
+		Gtk::Dialog* dlg;
+        builder->get_widget("dlg", dlg);
+		Gtk::SpinButton* width;
+        builder->get_widget("width", width);
+        width->set_value(size[0]);
+		Gtk::SpinButton* height;
+        builder->get_widget("height", height);
+        height->set_value(size[1]);
+        Gtk::ColorButton * color;
+        builder->get_widget("color", color);
+        color->set_color(background);
+	    int result = dlg->run();
+		switch (result) {
+			case Gtk::RESPONSE_OK:
+                size[0] = static_cast<int>(width->get_value());
+                size[1] = static_cast<int>(height->get_value());
+                background = color->get_color();
+                ret = true;
+				break;
+			default:
+				break;
+		}
+		delete dlg;
+    }
+    catch (const Glib::Error &ex) {
+        show_error(Glib::ustring::sprintf("Unable to load size-dlg: %s",  ex.what()));
+    }
+    return ret;
+}
 
 bool
 NomadWin::timeout()
@@ -198,6 +244,23 @@ NomadWin::activate_actions()
             }
 		});
     add_action(delay_action);
+
+    auto new_action = Gio::SimpleAction::create("new");
+    new_action->signal_activate().connect (
+        [this] (const Glib::VariantBase& value)  {
+            try {
+                std::array<int,2> size{800, 600};
+                auto background = m_config->getBackgroundColor();
+                if (ask_size(size, background)) {
+                    m_preview->create(size, background);
+                }
+            }
+            catch (const Glib::Error &ex) {
+                show_error(Glib::ustring::sprintf("Unable save file %s", ex.what()));
+            }
+        });
+    add_action(new_action);
+
     auto save_action = Gio::SimpleAction::create("save");
     save_action->signal_activate().connect (
         [this] (const Glib::VariantBase& value)  {

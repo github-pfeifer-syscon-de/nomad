@@ -18,6 +18,8 @@
 
 #include <iostream>
 #include <glibmm.h>
+#include <gdkmm-3.0/gdkmm/color.h>
+#include <gdkmm-3.0/gdkmm/rgba.h>
 
 #include "Config.hpp"
 
@@ -52,6 +54,17 @@ Config::read_config()
                 if (m_config->has_key(MAIN_GRP, CAPTURE_WINDOW_CONF)) {
                     m_captureWindow = m_config->get_boolean(MAIN_GRP, CAPTURE_WINDOW_CONF);
                 }
+                if (m_config->has_key(MAIN_GRP, BACKGROUNDCOLOR_CONF)) {
+                    auto color = m_config->get_string(MAIN_GRP, BACKGROUNDCOLOR_CONF);
+                    m_background.set(color);
+                }
+                if (m_config->has_key(MAIN_GRP, FOREGROUNDCOLOR_CONF)) {
+                    auto color = m_config->get_string(MAIN_GRP, FOREGROUNDCOLOR_CONF);
+                    m_foreground.set(color);
+                }
+                if (m_config->has_key(MAIN_GRP, TEXTSIZE_CONF)) {
+                    m_textSize = m_config->get_double(MAIN_GRP, TEXTSIZE_CONF);
+                }
             }
         }
         else {
@@ -70,6 +83,9 @@ Config::save_config()
     if (m_config) {
         m_config->set_integer(MAIN_GRP, DELAY_CONF, m_delaySec);
         m_config->set_boolean(MAIN_GRP, CAPTURE_WINDOW_CONF, m_captureWindow);
+        m_config->set_string(MAIN_GRP, BACKGROUNDCOLOR_CONF, m_background.to_string());
+        m_config->set_string(MAIN_GRP, FOREGROUNDCOLOR_CONF, m_foreground.to_string());
+        m_config->set_double(MAIN_GRP, TEXTSIZE_CONF, m_textSize);
         auto fullPath = get_config_name();
         if (!m_config->save_to_file(fullPath)) {
              std::cerr << "Error saving " << fullPath << std::endl;
