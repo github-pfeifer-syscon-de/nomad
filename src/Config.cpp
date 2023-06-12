@@ -62,8 +62,8 @@ Config::read_config()
                     auto color = m_config->get_string(MAIN_GRP, FOREGROUNDCOLOR_CONF);
                     m_foreground.set(color);
                 }
-                if (m_config->has_key(MAIN_GRP, TEXTSIZE_CONF)) {
-                    m_textSize = m_config->get_double(MAIN_GRP, TEXTSIZE_CONF);
+                if (m_config->has_key(MAIN_GRP, TEXTFONT_CONF)) {
+                    m_textFont = m_config->get_string(MAIN_GRP, TEXTFONT_CONF);
                 }
             }
         }
@@ -85,7 +85,7 @@ Config::save_config()
         m_config->set_boolean(MAIN_GRP, CAPTURE_WINDOW_CONF, m_captureWindow);
         m_config->set_string(MAIN_GRP, BACKGROUNDCOLOR_CONF, m_background.to_string());
         m_config->set_string(MAIN_GRP, FOREGROUNDCOLOR_CONF, m_foreground.to_string());
-        m_config->set_double(MAIN_GRP, TEXTSIZE_CONF, m_textSize);
+        m_config->set_string(MAIN_GRP, TEXTFONT_CONF, m_textFont);
         auto fullPath = get_config_name();
         if (!m_config->save_to_file(fullPath)) {
              std::cerr << "Error saving " << fullPath << std::endl;

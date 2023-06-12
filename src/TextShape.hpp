@@ -47,25 +47,10 @@ public:
     void setFont(Glib::ustring font) {
         m_font = font;
     }
-    Cairo::FontSlant getSlant() {
-        return m_slant;
-    }
-    Cairo::FontWeight getWeight() {
-        return m_weight;
-    }
-    double getSize() {
-        return m_size;
-    }
-    void setSize(double size) {
-        m_size = size;
-    }
 private:
     Glib::ustring m_text;
     Gdk::Color m_color;
-    Glib::ustring m_font{"sans-serif"};
-    Cairo::FontSlant m_slant{Cairo::FontSlant::FONT_SLANT_NORMAL};
-    Cairo::FontWeight m_weight{Cairo::FontWeight::FONT_WEIGHT_NORMAL};
-    double m_size{10.0};
+    Glib::ustring m_font;
 };
 
 class TextShape
@@ -81,8 +66,12 @@ public:
             const Cairo::RefPtr<Cairo::Context>& cairoCtx,
             int width,
             int height) override;
+    Gdk::Rectangle getBounds(
+            int width,
+            int height) override;
 
 private:
     TextInfo m_text;
+    Cairo::TextExtents m_extends;
 };
 

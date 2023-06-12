@@ -50,11 +50,11 @@ public:
     void setForegroundColor(const Gdk::Color& foreground) {
         m_foreground = foreground;
     }
-    double getTextSize() {
-        return m_textSize;
+    Glib::ustring getTextFont() {
+        return m_textFont;
     }
-    void setTextSize(double textSize) {
-        m_textSize = textSize;
+    void setTextFont(const Glib::ustring& textFont) {
+        m_textFont = textFont;
     }
 protected:
     Glib::ustring get_config_name();
@@ -65,18 +65,18 @@ private:
     bool m_captureWindow{true};
     Gdk::Color m_background;
     Gdk::Color m_foreground;
-    double m_textSize{10.0};
+    Glib::ustring m_textFont{"Sans 10"};
     Glib::KeyFile* m_config;
     //Glib::Property<Glib::ustring> property_delay_;
     //Glib::Property<bool> property_captWindow_;
 
     static constexpr auto CONF_FILE{"nomad.conf"};
     static constexpr auto MAIN_GRP{"main"};
-    static constexpr auto DELAY_CONF{"deplaySec"};
+    static constexpr auto DELAY_CONF{"delaySec"};
     static constexpr auto CAPTURE_WINDOW_CONF{"captureWindow"};
     static constexpr auto BACKGROUNDCOLOR_CONF{"backgroudColor"};
     static constexpr auto FOREGROUNDCOLOR_CONF{"foregroudColor"};
-    static constexpr auto TEXTSIZE_CONF{"textSize"};
+    static constexpr auto TEXTFONT_CONF{"textFont"};
 };
 
 

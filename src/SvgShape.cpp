@@ -68,3 +68,16 @@ SvgShape::render(const Cairo::RefPtr<Cairo::Context>& cairoCtx, int width, int h
     view.height = toRealHeight(height);
     return rsvg_handle_render_document(m_handle, cairoCtx->cobj(), &view, nullptr);
 }
+
+Gdk::Rectangle
+SvgShape::getBounds(
+        int width,
+        int height)
+{
+    Gdk::Rectangle next;
+    next.set_x(toRealX(width));
+    next.set_y(toRealY(height));
+    next.set_width(toRealWidth(width));
+    next.set_height(toRealHeight(height));
+    return next;
+}

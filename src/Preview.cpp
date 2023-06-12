@@ -70,7 +70,13 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
             , 8
             , size[0]
             , size[1]);
-    m_pixbuf->fill(background.get_pixel());
+    guint32 pixel = (background.get_red() >> 8u) << 24u
+                  | (background.get_green() >> 8u) << 16u
+                  | (background.get_blue())      // eliminated >> 8u) << 8u as this will be a no op
+                  | 0xffu;
+    m_pixbuf->fill(pixel);
+    m_shapes.clear();
+    m_selected.reset();
     queue_draw();
 }
 
@@ -81,19 +87,11 @@ Preview::on_motion_notify_event(GdkEventMotion* motion_event)
     bool btn1 = (motion_event->state  & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
     if (btn1) {
         if (m_selected && m_scaled) {
-            Gdk::Rectangle old;
-            old.set_x(m_selected->toRealX(m_scaled->get_width()));
-            old.set_y(m_selected->toRealX(m_scaled->get_height()));
-            old.set_width(m_selected->toRealWidth(m_scaled->get_width()));
-            old.set_height(m_selected->toRealHeight(m_scaled->get_height()));
+            Gdk::Rectangle old = m_selected->getBounds(m_scaled->get_width(), m_scaled->get_height());
             double relX = (motion_event->x - m_relX) / static_cast<double>(m_scaled->get_width());
             double relY = (motion_event->y - m_relY) / static_cast<double>(m_scaled->get_height());
             m_selected->setRelPosition(relX, relY);
-            Gdk::Rectangle next;
-            next.set_x(m_selected->toRealX(m_scaled->get_width()));
-            next.set_y(m_selected->toRealY(m_scaled->get_height()));
-            next.set_width(m_selected->toRealWidth(m_scaled->get_width()));
-            next.set_height(m_selected->toRealHeight(m_scaled->get_height()));
+            Gdk::Rectangle next = m_selected->getBounds(m_scaled->get_width(), m_scaled->get_height());
             next.join(old);
             queue_draw_area(
                     std::max(next.get_x()-20, 0),
@@ -125,17 +123,15 @@ Preview::on_button_press_event(GdkEventButton* event)
         double mouseX = event->x;
         double mouseY = event->y;
         for (auto shape : m_shapes) {
-            int x = shape->toRealX(m_scaled->get_width());
-            int y = shape->toRealY(m_scaled->get_height());
-            if (mouseX >= x && mouseY >= y) {
-                int w = shape->toRealWidth(m_scaled->get_width());
-                int h = shape->toRealHeight(m_scaled->get_height());
-                if (mouseX < x + w && mouseY < y + h) {
-                    m_relX = (mouseX - x);
-                    m_relY = (mouseY - y);
-                    m_selected = shape;
-                    break;
-                }
+            auto r =shape->getBounds(m_scaled->get_width(), m_scaled->get_height());
+            if (mouseX >= r.get_x()
+             && mouseX < r.get_x() + r.get_width()
+             && mouseY >= r.get_y()
+             && mouseY < r.get_y() + r.get_height()) {
+                m_relX = (mouseX - r.get_x());
+                m_relY = (mouseY - r.get_y());
+                m_selected = shape;
+                break;
             }
         }
     }

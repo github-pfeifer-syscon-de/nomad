@@ -42,8 +42,6 @@ TextShape::render(
     int x = toRealX(width);
     int y = toRealY(height);
     cairoCtx->move_to(x, y);
-    Cairo::TextExtents extends;
-    cairoCtx->get_text_extents(m_text.getText(), extends);
     //std::cout << "Text"
     //          << " width " <<  extends.width
     //          << " height " <<  extends.height
@@ -52,13 +50,35 @@ TextShape::render(
             m_text.getColor().get_red_p(),
             m_text.getColor().get_green_p(),
             m_text.getColor().get_blue_p());
-    auto font =
-        Cairo::ToyFontFace::create(m_text.getFont(),
-                               m_text.getSlant(),
-                               m_text.getWeight());
-    cairoCtx->set_font_face(font);
-    cairoCtx->set_font_size(getScale() * width / 400.0 * m_text.getSize());
-    cairoCtx->show_text(m_text.getText());
-    //cairoCtx->stroke();
+    auto layout = Pango::Layout::create(cairoCtx);
+    auto descr = Pango::FontDescription(m_text.getFont());
+    // make size depend on output
+    descr.set_size(static_cast<int>(getScale() * static_cast<double>(width) / 400.0 * static_cast<double>(descr.get_size())));
+    layout->set_font_description(descr);
+    layout->set_text(m_text.getText());
+    //auto font =
+    //    Cairo::ToyFontFace::create(m_text.getFont(),
+    //                           m_text.getSlant(),
+    //                           m_text.getWeight());
+    //cairoCtx->set_font_face(font);
+    //cairoCtx->show_text(m_text.getText());
+    layout->show_in_cairo_context(cairoCtx);
+    auto extend = layout->get_ink_extents();
+    m_extends.height = extend.get_width();
+    m_extends.width = extend.get_height();
     return true;
+}
+
+Gdk::Rectangle
+TextShape::getBounds(
+        int width,
+        int height)
+{
+    Gdk::Rectangle next;
+    // this assumes text was rendered with actual values ...
+    next.set_x(toRealX(width));
+    next.set_y(toRealY(height));
+    next.set_width(static_cast<int>(m_extends.width));
+    next.set_height(static_cast<int>(m_extends.height));
+    return next;
 }

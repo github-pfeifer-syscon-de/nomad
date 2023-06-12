@@ -30,6 +30,9 @@ public:
             const Cairo::RefPtr<Cairo::Context>& cairoCtx,
             int width,
             int height) = 0;
+    virtual Gdk::Rectangle getBounds(
+            int width,
+            int height) = 0;
     void setRelPosition(double posX, double posY);     // relative position 0..1
     void setScale(double scale);
     double getScale();

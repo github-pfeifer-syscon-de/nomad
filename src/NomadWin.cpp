@@ -76,6 +76,10 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     builder->get_widget("buttons", m_buttons);
 
     auto btn_text = Gtk::make_managed<Gtk::Button>();
+    //auto theme = Gtk::IconTheme::get_default();
+    //auto info = theme->lookup_icon("gtk-edit", Gtk::ICON_SIZE_BUTTON);    // new name "GTK_STOCK_EDIT"? not understood
+    //auto icon = Gtk::make_managed<Gtk::Image>(info.load_icon());
+    //btn_text->set_image(*icon);
     btn_text->set_image_from_icon_name("gtk-edit");
     btn_text->signal_clicked().connect([this] () {
         TextInfo text;
@@ -103,17 +107,17 @@ NomadWin::ask_text(TextInfo& textInfo)
         Gtk::ColorButton* color;
         builder->get_widget("color", color);
         color->set_color(m_config->getForegroundColor());
-        Gtk::SpinButton* size;
-        builder->get_widget("size", size);
-        size->set_value(m_config->getTextSize());
+        Gtk::FontButton *font;
+        builder->get_widget("font", font);
+        font->set_font_name(m_config->getTextFont());
 	    int result = dlg->run();
 		switch (result) {
 			case Gtk::RESPONSE_OK:
 				textInfo.setText(text->get_text());
                 textInfo.setColor(color->get_color());
-                textInfo.setSize(size->get_value());
+                textInfo.setFont(font->get_font_name());
                 m_config->setForegroundColor(color->get_color());
-                m_config->setTextSize(size->get_value());
+                m_config->setTextFont(font->get_font_name());
                 ret = true;
 				break;
 			default:
@@ -175,7 +179,7 @@ NomadWin::timeout()
 #endif
         //GdkRectangle re(0,0, 1920,1080);
         capture.set_take_window_shot(true);
-        GdkPixbuf* buf = capture.get_pixbuf(nullptr);    // &re
+        GdkPixbuf* buf = capture.get_pixbuf(nullptr);
         if (buf) {
             Glib::RefPtr<Gdk::Pixbuf> pixbuf = Glib::wrap(buf);
             m_preview->setPixbuf(pixbuf);
@@ -185,7 +189,7 @@ NomadWin::timeout()
         }
     }
 	catch (const Glib::Error &ex) {
-		show_error(Glib::ustring::sprintf("Unable to capture and save file %s", ex.what()));
+		show_error(Glib::ustring::sprintf("Unable to capture %s", ex.what()));
 	}
     return false;   // do not repeat
 }
@@ -199,7 +203,7 @@ NomadWin::activate_actions()
             m_config->save_config();
         });
     auto capture_action = Gio::SimpleAction::create("capture");
-    capture_action->signal_activate().connect (
+    capture_action->signal_activate().connect(
         [this] (const Glib::VariantBase& value)  {
             try {
                 if (m_timer.connected()) {
