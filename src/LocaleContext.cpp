@@ -40,7 +40,7 @@ LocaleContext::set(const char* lang)
 {
     const char* locale;
     #ifdef __WIN32__
-    if (strncmp(lang, "en", 2 == 0) {
+    if (strncmp(lang, "en", 2) == 0) {
         locale = "English";
     }
     #else

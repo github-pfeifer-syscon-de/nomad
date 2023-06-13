@@ -18,6 +18,7 @@
 
 #include <iostream>
 #include <windows.h>
+//#include <chrono>
 
 #include "WinCapture.hpp"
 
@@ -88,7 +89,8 @@ GdkPixbuf* CaptureAnImage(HWND hWnd)
                 };
 
                 // for this case (ABGR) the calculation is useless
-                DWORD dwRowStride = ((bmpWindow.bmWidth * bi.biBitCount + 31) / 32) * 4;
+                uint32_t wordRowStride = ((bmpWindow.bmWidth * bi.biBitCount + 31) / 32);
+                DWORD dwRowStride = wordRowStride * 4;
                 DWORD dwBmpSize = dwRowStride * bmpWindow.bmHeight;
 
                 // Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that
@@ -114,22 +116,46 @@ GdkPixbuf* CaptureAnImage(HWND hWnd)
                     gpointer buf = g_malloc(dwBmpSize);
                     if (buf) {
                         GBytes* bytes = g_bytes_new_take(buf, dwBmpSize);
+//                        std::chrono::steady_clock::time_point _start(std::chrono::steady_clock::now());
+//                        for (int y = 0; y < bmpWindow.bmHeight; ++y) {
+//                            DWORD yd = (bmpWindow.bmHeight-1) - y;
+//                            #ifdef WINCAP_DEBUG
+//                            std::cout << "row " << y << " yd " << yd << std::endl;
+//                            #endif
+//                            guchar* rows = (guchar*)lpbitmap + y * dwRowStride;
+//                            guchar* rowd = (guchar*)buf + yd * dwRowStride;
+//                            for (guint32 x = 0; x < dwRowStride; x += 4) {
+//                                //  windows   A BGR
+//                                //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
+//                                rowd[x+0] = rows[x+2];
+//                                rowd[x+1] = rows[x+1];
+//                                rowd[x+2] = rows[x+0];
+//                                rowd[x+3] = 0xff;       // rows[x+3] looks strange
+//                            }
+//                        }
+//                        // code you want to time here
+//                        std::chrono::steady_clock::time_point _end(std::chrono::steady_clock::now());
+//                        std::cout << "char version " << std::chrono::duration_cast<std::chrono::duration<double>>(_end - _start).count(); // in seconds, read more about std::chrono
+//                        _start = std::chrono::steady_clock::now();
+                        // this is significantly faster
                         for (int y = 0; y < bmpWindow.bmHeight; ++y) {
-                            DWORD yd = (bmpWindow.bmHeight-1) - y;
+                            int yd = (bmpWindow.bmHeight-1) - y;
                             #ifdef WINCAP_DEBUG
                             std::cout << "row " << y << " yd " << yd << std::endl;
                             #endif
-                            guchar* rows = (guchar*)lpbitmap + y * dwRowStride;
-                            guchar* rowd = (guchar*)buf + yd * dwRowStride;
-                            for (guint32 x = 0; x < dwRowStride; x += 4) {
+                            uint32_t* rows = (uint32_t*)lpbitmap + y * wordRowStride;
+                            uint32_t* rowd = (uint32_t*)buf + yd * wordRowStride;
+                            for (guint32 x = 0; x < wordRowStride; ++x) {
                                 //  windows   A BGR
                                 //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
-                                rowd[x+0] = rows[x+2];
-                                rowd[x+1] = rows[x+1];
-                                rowd[x+2] = rows[x+0];
-                                rowd[x+3] = 0xff;       // rows[x+3] looks strange
+                                auto abgr = rows[x];
+                                auto r = abgr & 0xffu;
+                                auto b = (abgr >> 16u) & 0xffu;
+                                rowd[x] = 0xff000000u | (r << 16u) | (abgr & 0xff00u) | b;
                             }
                         }
+                        //_end = std::chrono::steady_clock::now();
+                        //std::cout << "uint version " << std::chrono::duration_cast<std::chrono::duration<double>>(_end - _start).count(); // in seconds, read more about std::chrono
                         pixbuf = gdk_pixbuf_new_from_bytes(bytes
                                 , GDK_COLORSPACE_RGB
                                 , true
