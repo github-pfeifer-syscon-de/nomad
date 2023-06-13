@@ -45,6 +45,7 @@ protected:
 
 private:
     void activate_actions();
+    void create_buttons();
 
     NomadApp* m_application;
     NomadTreeView* m_treeView;

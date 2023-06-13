@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2023 rpf
+ * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,42 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
-
-#include <librsvg/rsvg.h>
 
 #include "ScaleableShape.hpp"
 
-class SvgException
-: public Glib::Error
+
+int
+ScaleableShape::toRealWidth(int outpWidth)
 {
-public:
-    SvgException(GError* err)
-    : Glib::Error(err, true)
-    {
-    }
-    virtual ~SvgException() = default;
-};
+    return static_cast<int>(m_scale * static_cast<double>(outpWidth));
+}
 
-class SvgShape
-: public ScaleableShape
+int
+ScaleableShape::toRealHeight(int outpHeight)
 {
-public:
-    SvgShape();
-    explicit SvgShape(const SvgShape& orig) = delete;
-    virtual ~SvgShape();
+    return static_cast<int>(m_scale * static_cast<double>(outpHeight));
+}
 
-    void from_file(const Glib::RefPtr<Gio::File>& f);
-    bool pixel_size(gdouble* svgWidth, gdouble* svgHeight);
-    bool render(
-            const Cairo::RefPtr<Cairo::Context>& cairoCtx,
-            int width,
-            int height) override;
-    Gdk::Rectangle getBounds(
-            int width,
-            int height) override;
+void
+ScaleableShape::setScale(double scale)
+{
+    m_scale = scale;
+}
 
-private:
-    RsvgHandle* m_handle;
-};
-
+double
+ScaleableShape::getScale()
+{
+    return m_scale;
+}

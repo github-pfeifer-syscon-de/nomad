@@ -35,22 +35,26 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
             | Gdk::EventMask::BUTTON_RELEASE_MASK
             | Gdk::EventMask::BUTTON_MOTION_MASK);
 
+    std::array<int,2> size {800,600};
+    Gdk::Color color;
+    color.set("#000");
+    create(size, color);
 }
 
-bool
-Preview::load(const Glib::RefPtr<Gio::File>& f)
+void
+Preview::loadSvg(const Glib::RefPtr<Gio::File>& f)
 {
     auto svg = std::make_shared<SvgShape>();
-    if (svg->from_file(f)) {
-        std::clog << "svg/debug: SVG loaded successfully." << std::endl;
-        svg->setScale(0.1);
-        m_shapes.push_back(svg);
-        return true;
-    }
-    else {
-        std::clog << "svg/debug: error loading " << f->get_path() << " svg." << std::endl;
-    }
-    return false;
+    svg->from_file(f);
+    svg->setScale(0.1);
+    add(svg);
+}
+
+void
+Preview::add(const std::shared_ptr<Shape>& shape)
+{
+    m_shapes.push_back(shape);
+    queue_draw();
 }
 
 void
@@ -58,7 +62,7 @@ Preview::addText(const TextInfo& text)
 {
     auto textShape = std::make_shared<TextShape>();
     textShape->setText(text);
-    m_shapes.push_back(textShape);
+    add(textShape);
 }
 
 void
@@ -80,6 +84,14 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
     queue_draw();
 }
 
+void
+Preview::loadImage(const Glib::RefPtr<Gio::File>& f)
+{
+    m_pixbuf = Gdk::Pixbuf::create_from_file(f->get_path());
+    m_shapes.clear();
+    m_selected.reset();
+    queue_draw();
+}
 
 bool
 Preview::on_motion_notify_event(GdkEventMotion* motion_event)
@@ -166,7 +178,7 @@ Preview::render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
 }
 
 bool
-Preview::save(const Glib::ustring& file)
+Preview::saveImage(const Glib::ustring& file)
 {
     if (m_pixbuf) {
         Cairo::RefPtr<Cairo::ImageSurface> outpixmap = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32,

@@ -17,10 +17,122 @@
  */
 
 #include <iostream>
+#include <locale>
 
 #include "CairoShape.hpp"
+#include "LocaleContext.hpp"
+#include "StringUtils.hpp"
 
-CairoShape::CairoShape()
+CairoShape::CairoShape(const Glib::ustring& path)
+: m_path{}
+, m_color("#fff")
 {
+    Glib::ustring npath = StringUtils::replaceAll(path, "\n", " ");
+    npath = StringUtils::replaceAll(npath, "\t", " ");
+    std::vector<Glib::ustring> parts;
+    StringUtils::split(npath, ' ', parts);
+    std::shared_ptr<DrawCommand> command;
+    LocaleContext ctx(LC_NUMERIC);
+    for (auto part : parts) {
+        auto c = part[0];
+        if (g_unichar_isalpha(c)) {
+            if (command) {
+                m_path.push_back(std::move(command));
+            }
+            command = std::make_shared<DrawCommand>(c);
+        }
+        else if (g_unichar_isdigit(c)) {
+            double val = ctx.parseDouble(LocaleContext::en_US, part);
+            if (command) {
+                if (command->isXSet()) {
+                    command->setY(val);
+                }
+                else {
+                    command->setX(val);
+                }
+            }
+        }
+    }
+    if (command) {
+        m_path.push_back(std::move(command));
+    }
 }
 
+double
+CairoShape::relWidth(int width)
+{
+    double rwidth = getScale() * static_cast<double>(width);
+    return rwidth;
+}
+
+double
+CairoShape::relHeight(int height)
+{
+    double rheight = getScale() * static_cast<double>(height);
+    return rheight;
+}
+
+bool
+CairoShape::render(
+        const Cairo::RefPtr<Cairo::Context>& cairoCtx,
+        int outpWidth,
+        int outpHeight)
+{
+    cairoCtx->set_source_rgb(m_color.get_red_p(), m_color.get_green_p(), m_color.get_blue_p());
+    double rwidth{1.0};
+    double rheight{1.0};
+    int xorg = toRealX(outpWidth);
+    int yorg = toRealY(outpHeight);
+    for (auto cmd : m_path) {
+        //std::cout << "Cmd " << cmd->getCmd() << " x " << cmd->getX() << " y " << cmd->getY() << std::endl;
+        if (cmd->getCmd() == L'S') {
+            if (cmd->getX() != 0.0) {
+                rwidth = relWidth(outpWidth) / cmd->getX();
+            }
+            else {
+                std::cout << "CairoShape::render no width!" << std::endl;
+            }
+            if (cmd->getY() != 0.0) {
+                rheight = relHeight(outpHeight) / cmd->getY();
+            }
+            else {
+                std::cout << "CairoShape::render no height!" << std::endl;
+            }
+            //std::cout << "Size " << " x " << rwidth << " y " << rheight << " scale " << getScale()  << std::endl;
+        }
+        else if (cmd->getCmd() == L'W') {
+            double w = cmd->getX() * rwidth;
+            //std::cout << "Width " << " w " << w << std::endl;
+            cairoCtx->set_line_width(w);
+            cairoCtx->set_line_cap(Cairo::LineCap::LINE_CAP_ROUND);
+            cairoCtx->set_line_join(Cairo::LineJoin::LINE_JOIN_ROUND);
+        }
+        else  if (cmd->getCmd() == L'M') {
+            double x = xorg + cmd->getX() * rwidth;
+            double y = yorg + cmd->getY() * rheight;
+            //std::cout << "Move " << " x " << x << " y " << y << std::endl;
+            cairoCtx->move_to(x, y);
+        }
+        else  if (cmd->getCmd() == L'L') {
+            double x = xorg + cmd->getX() * rwidth;
+            double y = yorg + cmd->getY() * rheight;
+            //std::cout << "Line " << " x " << x << " y " << y << std::endl;
+            cairoCtx->line_to(x, y);
+        }
+    }
+    cairoCtx->stroke();
+    return true;
+}
+
+Gdk::Rectangle
+CairoShape::getBounds(
+        int outpWidth,
+        int outpHeight)
+{
+    Gdk::Rectangle r;
+    r.set_x(toRealX(outpWidth));
+    r.set_y(toRealY(outpHeight));
+    r.set_width(static_cast<int>(relWidth(outpWidth)));
+    r.set_height(static_cast<int>(relHeight(outpHeight)));
+    return r;
+}

@@ -31,25 +31,19 @@ SvgShape::~SvgShape()
     g_object_unref(m_handle);
 }
 
-bool
+void
 SvgShape::from_file(const Glib::RefPtr<Gio::File>& f)
 {
     rsvg_handle_set_base_uri(m_handle, f->get_path().c_str());
     auto fs = f->read();
     GError* pError = nullptr;
     // rsvg_new_from_gfile might be an option but for the moment keep this generic
-    gboolean result = rsvg_handle_read_stream_sync(m_handle, G_INPUT_STREAM(fs.get()->gobj()), nullptr, &pError);
+    // gboolean result =
+    rsvg_handle_read_stream_sync(m_handle, G_INPUT_STREAM(fs.get()->gobj()), nullptr, &pError);
     fs->close();
-    if (!result) {
-        std::string msg("Unable to load " + f->get_path());
-        if (pError) {
-            msg = msg + " error " + pError->message;
-            g_error_free(pError);
-        }
-        std::clog << "SvgShape::from_file " << msg << std::endl;
-        //throw std::runtime_error(msg);
+    if (pError) {
+        throw SvgException(pError);
     }
-    return result;
 }
 
 bool

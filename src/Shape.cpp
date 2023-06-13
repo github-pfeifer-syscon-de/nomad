@@ -27,36 +27,13 @@ Shape::setRelPosition(double posX, double posY)
 }
 
 int
-Shape::toRealX(int width)
+Shape::toRealX(int outpWidth)
 {
-    return static_cast<int>(m_relPosX * static_cast<double>(width));
+    return static_cast<int>(m_relPosX * static_cast<double>(outpWidth));
 }
 
 int
-Shape::toRealY(int height)
+Shape::toRealY(int outpHeight)
 {
-    return static_cast<int>(m_relPosY * static_cast<double>(height));
-}
-
-int
-Shape::toRealWidth(int width)
-{
-    return static_cast<int>(m_scale * static_cast<double>(width));
-}
-
-int
-Shape::toRealHeight(int height)
-{
-    return static_cast<int>(m_scale * static_cast<double>(height));
-}
-
-void
-Shape::setScale(double scale)
-{
-    m_scale = scale;
-}
-
-double Shape::getScale()
-{
-    return m_scale;
+    return static_cast<int>(m_relPosY * static_cast<double>(outpHeight));
 }

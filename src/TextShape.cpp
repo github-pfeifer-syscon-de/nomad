@@ -35,12 +35,12 @@ TextShape::setText(const TextInfo& text)
 
 bool
 TextShape::render(
-        const Cairo::RefPtr<Cairo::Context>& cairoCtx,
-        int width,
-        int height)
+        const Cairo::RefPtr<Cairo::Context>& cairoCtx
+        , int outpWidth
+        , int outpHeight)
 {
-    int x = toRealX(width);
-    int y = toRealY(height);
+    int x = toRealX(outpWidth);
+    int y = toRealY(outpHeight);
     cairoCtx->move_to(x, y);
     //std::cout << "Text"
     //          << " width " <<  extends.width
@@ -53,7 +53,7 @@ TextShape::render(
     auto layout = Pango::Layout::create(cairoCtx);
     auto descr = Pango::FontDescription(m_text.getFont());
     // make size depend on output
-    descr.set_size(static_cast<int>(getScale() * static_cast<double>(width) / 400.0 * static_cast<double>(descr.get_size())));
+    descr.set_size(static_cast<int>(static_cast<double>(outpWidth) / 400.0 * static_cast<double>(descr.get_size())));
     layout->set_font_description(descr);
     layout->set_text(m_text.getText());
     //auto font =
@@ -71,8 +71,8 @@ TextShape::render(
 
 Gdk::Rectangle
 TextShape::getBounds(
-        int width,
-        int height)
+        int width
+        , int height)
 {
     Gdk::Rectangle next;
     // this assumes text was rendered with actual values ...

@@ -34,15 +34,10 @@ public:
             int width,
             int height) = 0;
     void setRelPosition(double posX, double posY);     // relative position 0..1
-    void setScale(double scale);
-    double getScale();
     int toRealX(int width);
     int toRealY(int height);
-    int toRealWidth(int width);
-    int toRealHeight(int height);
 private:
     double m_relPosX{0.5};
     double m_relPosY{0.5};
-    double m_scale{1.0};
 };
 

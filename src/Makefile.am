@@ -30,6 +30,7 @@ nomad_SOURCES = resources.c \
 	NomadWin.cpp \
 	NomadWin.hpp \
 	StringUtils.hpp \
+	StringUtils.cpp \
 	NomadTreeView.cpp \
 	NomadTreeView.hpp \
 	Capture.hpp \
@@ -42,6 +43,10 @@ nomad_SOURCES = resources.c \
 	TextShape.cpp \
 	SvgShape.hpp \
 	SvgShape.cpp \
+	ScaleableShape.hpp \
+	ScaleableShape.cpp \
+	LocaleContext.hpp \
+	LocaleContext.cpp \
 	Preview.cpp \
 	Preview.hpp
 

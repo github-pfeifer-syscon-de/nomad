@@ -1,4 +1,3 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
  * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
@@ -20,13 +19,20 @@
 
 #include <glibmm.h>
 
-class StringUtils
+// pack the locale set/restore into a type aka raii
+class LocaleContext
 {
 public:
-    static void split(const Glib::ustring &line, char delim, std::vector<Glib::ustring> &ret);
-    static Glib::ustring replaceAll(const Glib::ustring& text, const Glib::ustring& replace, const Glib::ustring& with);
-    // simple fix for the ustring <-> char8_t incompatibility
-    static inline Glib::ustring u8str(const char8_t* cnst) {
-        return Glib::ustring(reinterpret_cast<const char*>(cnst));
-    }
+    LocaleContext(int category);
+    virtual ~LocaleContext();
+
+    bool set(const char* lang);
+    // parse double for a locale use integer as fallback
+    double parseDouble(const char* lang, const Glib::ustring& text);
+
+    static constexpr auto en_US = "en_US.utf8";
+private:
+    int m_category;
+    const char *m_prev_loc{nullptr};
 };
+

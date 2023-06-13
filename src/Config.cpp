@@ -17,9 +17,7 @@
  */
 
 #include <iostream>
-#include <glibmm.h>
-#include <gdkmm-3.0/gdkmm/color.h>
-#include <gdkmm-3.0/gdkmm/rgba.h>
+#include <gtkmm.h>
 
 #include "Config.hpp"
 

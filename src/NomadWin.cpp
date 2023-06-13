@@ -23,6 +23,7 @@
 #include "NomadApp.hpp"
 #include "Capture.hpp"
 #include "TextShape.hpp"
+#include "CairoShape.hpp"
 #ifdef __WIN32__
 #include "WinCapture.hpp"
 #else
@@ -74,20 +75,7 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
     builder->get_widget_derived("tree_view", m_treeView, this);
     builder->get_widget_derived("preview", m_preview, this);
     builder->get_widget("buttons", m_buttons);
-
-    auto btn_text = Gtk::make_managed<Gtk::Button>();
-    //auto theme = Gtk::IconTheme::get_default();
-    //auto info = theme->lookup_icon("gtk-edit", Gtk::ICON_SIZE_BUTTON);    // new name "GTK_STOCK_EDIT"? not understood
-    //auto icon = Gtk::make_managed<Gtk::Image>(info.load_icon());
-    //btn_text->set_image(*icon);
-    btn_text->set_image_from_icon_name("gtk-edit");
-    btn_text->signal_clicked().connect([this] () {
-        TextInfo text;
-        if (ask_text(text)) {
-            m_preview->addText(text);
-        }
-    });
-    m_buttons->add(*btn_text);
+    create_buttons();
 
     show_all_children();
 }
@@ -195,6 +183,49 @@ NomadWin::timeout()
 }
 
 void
+NomadWin::create_buttons()
+{
+    auto btn_text = Gtk::make_managed<Gtk::Button>();
+    //auto theme = Gtk::IconTheme::get_default();
+    //auto info = theme->lookup_icon("gtk-edit", Gtk::ICON_SIZE_BUTTON);    // new name "GTK_STOCK_EDIT"? not understood
+    //auto icon = Gtk::make_managed<Gtk::Image>(info.load_icon());
+    //btn_text->set_image(*icon);
+    btn_text->set_image_from_icon_name("gtk-edit");
+    btn_text->signal_clicked().connect([this] () {
+        TextInfo text;
+        if (ask_text(text)) {
+            m_preview->addText(text);
+        }
+    });
+    m_buttons->add(*btn_text);
+    auto btn_arrow = Gtk::make_managed<Gtk::Button>();
+    btn_arrow->set_image_from_icon_name("gtk-go-up");
+    btn_arrow->signal_clicked().connect([this] () {
+        auto arrow = std::make_shared<CairoShape>("S 24 24 W 2 M 7 7.5 L 12 2.5 L 17 7.5 M 12 21.3 L 12 4.8");
+        arrow->setScale(0.1);
+        m_preview->add(arrow);
+    });
+    m_buttons->add(*btn_arrow);
+    auto btn_load = Gtk::make_managed<Gtk::Button>();
+    btn_load->set_image_from_icon_name("gtk-directory");
+    btn_load->signal_clicked().connect([this] () {
+        try {
+            NomadFileChooser file_chooser(*this, false, "svg");
+            if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
+                //std::string home = Glib::get_home_dir();
+                //Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
+                //Glib::filename_from_utf8(fullPath);
+                m_preview->loadSvg(file_chooser.get_file());
+            }
+        }
+        catch (const Glib::Error &ex) {
+            show_error(Glib::ustring::sprintf("Unable load file %s", ex.what()));
+        }
+    });
+    m_buttons->add(*btn_load);
+}
+
+void
 NomadWin::activate_actions()
 {
     m_config = std::make_shared<Config>();
@@ -272,7 +303,7 @@ NomadWin::activate_actions()
                 if (m_preview->getPixbuf()) {
                     NomadFileChooser file_chooser(*this, true, "png");
                     if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-                        if (!m_preview->save(file_chooser.get_filename())) {
+                        if (!m_preview->saveImage(file_chooser.get_filename())) {
                             show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
                         }
                     }
@@ -287,13 +318,13 @@ NomadWin::activate_actions()
     load_action->signal_activate().connect (
         [this] (const Glib::VariantBase& value)  {
             try {
-                NomadFileChooser file_chooser(*this, false, "svg");
+                NomadFileChooser file_chooser(*this, false, "png");
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-                    //std::string home = Glib::get_home_dir();
-                    //Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
-                    //Glib::filename_from_utf8(fullPath);
-                    if (!m_preview->load(file_chooser.get_file())) {
-                        show_error(Glib::ustring::sprintf("Unable to load file %s", file_chooser.get_filename()));
+                    try {
+                        m_preview->loadImage(file_chooser.get_file());
+                    }
+                    catch (const Glib::Error &ex) {
+                        show_error(Glib::ustring::sprintf("Error %s loading %s", ex.what(), file_chooser.get_filename()));
                     }
                 }
             }

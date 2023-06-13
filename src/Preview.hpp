@@ -34,13 +34,14 @@ public:
     void setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf);
     Glib::RefPtr<Gdk::Pixbuf> getPixbuf();
 
-    bool load(const Glib::RefPtr<Gio::File>& f);
-    bool save(const Glib::ustring& file);
+    void loadSvg(const Glib::RefPtr<Gio::File>& f);
+    bool saveImage(const Glib::ustring& file);
+    void loadImage(const Glib::RefPtr<Gio::File>& f);
     void addText(const TextInfo& text);
     void create(std::array<int,2> size, const Gdk::Color& background);
+    void add(const std::shared_ptr<Shape>& shape);
 
 protected:
-    void loadSVG(std::string const& filename);
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
     bool on_button_press_event(GdkEventButton* event) override;
