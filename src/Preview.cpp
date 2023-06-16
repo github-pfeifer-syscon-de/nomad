@@ -19,22 +19,69 @@
 #include <cmath>
 #include <iostream>
 #include <istream>
+#include <sstream>      // std::ostringstream
+#include <iomanip>
 
 #include "Preview.hpp"
 #include "SvgShape.hpp"
 #include "NomadWin.hpp"
 #include "TextShape.hpp"
 
+#ifdef __WIN32__
+#include "WinScan.hpp"
+
+WorkThread::WorkThread(Glib::Dispatcher& dispatcher)
+: m_dispatcher{dispatcher}
+{
+}
+
+void
+WorkThread::run()
+{
+    WinScan winScan;
+    auto devs = winScan.getDevices();
+    std::cout << "Devs " << devs.size() << std::endl;
+    if (!devs.empty()) {
+        m_pCallback  = new CWiaDataCallback(m_dispatcher);
+        if (m_pCallback) {
+            auto dev = devs[0];
+            bool r = dev->scan(m_pCallback);
+            std::cout << "scan " << (r ? "ok" : "err") << std::endl;
+        }
+        else {
+            std::cout << "Error creating callback" << std::endl;
+        }
+    }
+}
+
+CWiaDataCallback*
+WorkThread::getDataCallback()
+{
+    return m_pCallback;
+}
+
+WorkThread::~WorkThread()
+{
+    if (m_pCallback) {
+        m_pCallback->Release();
+        m_pCallback = nullptr;
+    }
+
+}
+#endif
+
 Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::DrawingArea(cobject)
 , m_nomadWin{nomadWin}
 , m_pixbuf{}
 , m_scaled{}
+, m_dispatcher{}
 {
     add_events(Gdk::EventMask::BUTTON_PRESS_MASK
             | Gdk::EventMask::BUTTON_RELEASE_MASK
             | Gdk::EventMask::BUTTON_MOTION_MASK);
 
+    m_dispatcher.connect(sigc::mem_fun(*this, &Preview::info));
     std::array<int,2> size {800,600};
     Gdk::Color color;
     color.set("#000");
@@ -216,3 +263,138 @@ Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
     return true;
 }
 
+#ifdef __WIN32__
+std::string
+Preview::dump(const guint8 *data, gsize size)
+{
+    std::ostringstream out;
+    gsize offset = 0u;
+    while (offset < size) {
+        if (offset > 0u) {
+            out << std::endl;
+        }
+        out << std::hex << std::setw(4) << std::setfill('0') << offset << ":";
+        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
+            out << std::setw(2) << std::setfill('0') << (int)data[offset+i] << " ";
+        }
+        out << std::dec << std::setw(1) << " ";
+        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
+            if (data[offset+i] >= 32 && data[offset+i] < 127) {
+                out << data[offset+i];
+            }
+            else {
+                out << ".";
+            }
+        }
+        offset += 16u;
+    }
+    return out.str();
+}
+
+
+void
+Preview::info()
+{
+    if (m_worker) {
+        uint32_t size = 0;
+        int32_t percent = 0;
+        uint8_t* p = m_worker->getDataCallback()->getDataTransfered(&size, &percent);
+
+        std::cout  << "percent " << percent
+                   << " size " << size
+                   << std::endl;
+        if (p && size >= sizeof(BITMAPINFOHEADER)) {
+            auto bi = reinterpret_cast<BITMAPINFOHEADER*>(p);
+            if (m_initScan) {
+                std::cout << "Got scan size "
+                          << bi->biWidth << " " << bi->biHeight
+                          << " bits " << bi->biBitCount
+                          << " compress " << std::hex << bi->biCompression << std::dec
+                          << std::endl;
+                if (bi->biWidth >= 0) {
+                    std::array<int,2> size {bi->biWidth,std::abs(bi->biHeight)};
+                    Gdk::Color color;
+                    color.set("#000");
+                    create(size, color);
+                    m_initScan = false;
+                    m_RowLast = 0;
+                }
+                else {
+                    std::cout << dump(p, 64) << std::endl;
+                    std::cout << "Bitmap wrong info header " << std::endl;
+                }
+            }
+            else {
+                int32_t height = std::abs(bi->biHeight);
+                uint8_t* bmpData = p + bi->biSize;
+                uint8_t* pixData = m_pixbuf->get_pixels();
+                // this let us run past end...
+                uint32_t bytePerPixel = bi->biBitCount > 8 ? 4 : 1; // as it seems pixel are always dword aligned
+                //uint32_t wordRowStride = ((bi->biWidth * bi->biBitCount) / 32);
+                uint32_t wordRowStride = ((bi->biWidth * bytePerPixel * 8 + 31) / 32);
+                uint32_t byteRowStride = wordRowStride * bytePerPixel;
+                int32_t uptoRow = std::min(static_cast<int32_t>((size - bi->biSize) / byteRowStride), height);
+                std::cout << "uptoRow " << uptoRow << " word stide " <<  wordRowStride << " byte stride " << byteRowStride << std::endl;
+                for (int32_t y = m_RowLast; y < uptoRow; ++y) {
+                    //int yd = (bmpWindow.bmHeight-1) - y;
+                    std::cout << "row " << y << std::endl;
+                    uint8_t* rows = (uint8_t*)bmpData + y * byteRowStride;
+                    uint32_t* rowd = (uint32_t*)pixData + y * wordRowStride;    // yd
+                    for (guint32 x = 0; x < wordRowStride; ++x) {
+                        //  windows   BGR?
+                        uint32_t rgb;
+                        if (bytePerPixel >= 3) {       // discard alpha in case it is there...
+                            rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
+                        }
+                        else if (bytePerPixel <= 1) {  // grayscale
+                            rgb = (rows[0] << 16u) | (rows[0] << 8u) | rows[0];
+                        }
+                        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
+                        rowd[0] = 0xff000000u | rgb;
+                        rows += bytePerPixel;
+                        ++rowd;
+                    }
+                }
+                queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow);
+                m_RowLast = uptoRow;
+            }
+        }
+    }
+    else {
+        std::cout << "missing callback!" << std::endl;
+    }
+}
+
+void
+Preview::scan()
+{
+    // use member so we wont fail on destruction of thread and can keep transfer
+    if (m_workThread != nullptr) {
+        if (m_workThread->joinable()) {
+            std::cout << "Joining ..." << std::endl;
+            m_workThread->join();   // wait for prev.
+        }
+        std::cout << "Destroy prev" << std::endl;
+        delete m_workThread;
+        m_workThread = nullptr;
+    }
+    if (m_worker) {
+        delete m_worker;
+        m_worker = nullptr;
+    }
+    if (m_workThread == nullptr) {
+        m_initScan = true;
+        m_worker = new WorkThread(m_dispatcher);
+        //m_workThread = ThreadWrapper ([] (WorkThread* worker) {
+        //    worker->run();
+        //}, m_worker);
+        m_workThread = new std::thread(
+            [this] {
+            m_worker->run();
+        });
+    }
+    //t.join ();
+
+
+}
+#endif

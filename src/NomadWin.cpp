@@ -248,6 +248,19 @@ NomadWin::activate_actions()
             }
 		});
     add_action(capture_action);
+    #ifdef __WIN32__
+    auto scan_action = Gio::SimpleAction::create("scan");
+    scan_action->signal_activate().connect(
+        [this] (const Glib::VariantBase& value)  {
+            try {
+                m_preview->scan();
+            }
+            catch (const Glib::Error &ex) {
+                show_error(Glib::ustring::sprintf("Unable to scan %s", ex.what()));
+            }
+		});
+    add_action(scan_action);
+    #endif
     auto captureWindow_action = Gio::SimpleAction::create_bool("captureWindow", m_config->isCaptureWindow());
     captureWindow_action->signal_change_state().connect (
         [this,captureWindow_action] (const Glib::VariantBase& value)  {

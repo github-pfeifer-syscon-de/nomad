@@ -47,6 +47,8 @@ nomad_SOURCES = resources.c \
 	ScaleableShape.cpp \
 	LocaleContext.hpp \
 	LocaleContext.cpp \
+	GenericCallback.hpp \
+	GenericCallback.cpp \
 	Preview.cpp \
 	Preview.hpp
 
@@ -57,8 +59,15 @@ nomad_SOURCES += \
 endif
 
 if HAVE_WIN
+# you might need to remove this if you have no SDK installed
+#nomad_CFLAGS += -I "/C/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/um"
+#nomad_CXXFLAGS += -I "/C/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/um"
 nomad_SOURCES += \
 	WinCapture.hpp \
-	WinCapture.cpp
+	WinCapture.cpp \
+	CWiaDataCallback.hpp \
+	CWiaDataCallback.cpp \
+	WinScan.hpp \
+	WinScan.cpp
 endif
 

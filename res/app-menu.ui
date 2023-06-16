@@ -31,6 +31,10 @@
           <attribute name="action">win.capture</attribute>
         </item>
         <item>
+          <attribute translatable="yes" name="label">Scan</attribute>
+          <attribute name="action">win.scan</attribute>
+        </item>
+        <item>
           <attribute translatable="yes" name="label">Capture window</attribute>
           <attribute name="action">win.captureWindow</attribute>
         </item>

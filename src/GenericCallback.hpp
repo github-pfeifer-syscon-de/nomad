@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2023 rpf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +18,16 @@
 
 #pragma once
 
-#include <glibmm.h>
+#include <cstdint>
 
-class StringUtils
-{
+class GenericCallback {
 public:
-    static void split(const Glib::ustring &line, char delim, std::vector<Glib::ustring> &ret);
-    static Glib::ustring replaceAll(const Glib::ustring& text, const Glib::ustring& replace, const Glib::ustring& with);
-    // simple fix for the ustring <-> char8_t incompatibility
-    static inline Glib::ustring u8str(const char8_t* cnst) {
-        return Glib::ustring(reinterpret_cast<const char*>(cnst));
-    }
-    #ifdef __WIN32__
-    // Convert a wide Unicode string to an UTF8 string
-    static std::string utf8_encode(const std::wstring &wstr);
-    #endif
+    GenericCallback();
+    explicit GenericCallback(const GenericCallback& orig) = delete;
+    virtual ~GenericCallback() = default;
+
+    virtual uint8_t* getDataTransfered(uint32_t *bytesTrasnfered, int32_t* percentTransfered) = 0;
+private:
+
 };
+

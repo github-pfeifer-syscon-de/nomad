@@ -19,11 +19,47 @@
 #pragma once
 
 #include <gtkmm.h>
+#ifdef __WIN32__
+#include <thread>
+#include <functional>
+#endif
+#include "GenericCallback.hpp"
 
 class NomadWin;
 class Shape;
 class TextInfo;
 
+
+#ifdef __WIN32__
+class CWiaDataCallback;
+//
+//void preamble (void) {
+//    std::cout << "preamble\n";
+//}
+//
+//template <class F, class ... Args>
+//std::thread* ThreadWrapper (F f, Args&& ... args)
+//{
+//    return new std::thread ([f, args...] () {
+//        preamble ();
+//        f (std::forward <Args...> (args...));
+//    });
+//};
+//
+
+class WorkThread
+{
+public:
+    WorkThread(Glib::Dispatcher& dispatcher);
+    virtual ~WorkThread();
+    void run();
+    CWiaDataCallback* getDataCallback();
+private:
+    Glib::Dispatcher& m_dispatcher;
+    CWiaDataCallback* m_pCallback;
+
+};
+#endif
 class Preview
 : public Gtk::DrawingArea
 {
@@ -40,6 +76,7 @@ public:
     void addText(const TextInfo& text);
     void create(std::array<int,2> size, const Gdk::Color& background);
     void add(const std::shared_ptr<Shape>& shape);
+    void scan();
 
 protected:
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
@@ -48,6 +85,8 @@ protected:
     bool on_button_release_event(GdkEventButton* event) override;
     void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf);
+    void info();
+    std::string dump(const guint8 *data, gsize size);
 
 private:
     NomadWin* m_nomadWin;
@@ -57,6 +96,11 @@ private:
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
     double m_relX{0.0};
     double m_relY{0.0};
+    std::thread* m_workThread{nullptr};
+    WorkThread* m_worker{nullptr};
+    Glib::Dispatcher m_dispatcher;
+    bool m_initScan{false};
+    int32_t m_RowLast{0};
 };
 
 
