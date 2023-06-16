@@ -325,22 +325,32 @@ Preview::info()
                 }
             }
             else {
+                // we get width 2550 height -3501 bits 24 compress 0
+                // the last packet will be offs 26629000 len 160692
+                //   the first 40bytes will be bitmap-header
+                //   the byteStrideSize should be 7652 = (2550 * 3) round up to 4
+                //   so 26789652 / 7652 will give use the expected 3501
                 int32_t height = std::abs(bi->biHeight);
+                bool bmpInverseHeight = bi->biHeight < 0;
+                int32_t width = std::abs(bi->biWidth);
                 uint8_t* bmpData = p + bi->biSize;
                 uint8_t* pixData = m_pixbuf->get_pixels();
-                // this let us run past end...
-                uint32_t bytePerPixel = bi->biBitCount > 8 ? 4 : 1; // as it seems pixel are always dword aligned
+                // as it seems pixel are always dword aligned at least visually we get a gray image
+                uint32_t bytePerPixel = bi->biBitCount / 8;
                 //uint32_t wordRowStride = ((bi->biWidth * bi->biBitCount) / 32);
-                uint32_t wordRowStride = ((bi->biWidth * bytePerPixel * 8 + 31) / 32);
-                uint32_t byteRowStride = wordRowStride * bytePerPixel;
+                uint32_t wordRowStride = ((width * bi->biBitCount + 31) / 32);
+                uint32_t byteRowStride = wordRowStride * 4;
                 int32_t uptoRow = std::min(static_cast<int32_t>((size - bi->biSize) / byteRowStride), height);
-                std::cout << "uptoRow " << uptoRow << " word stide " <<  wordRowStride << " byte stride " << byteRowStride << std::endl;
+                std::cout << "uptoRow " << uptoRow << " word stride " <<  wordRowStride << " byte stride " << byteRowStride << std::endl;
                 for (int32_t y = m_RowLast; y < uptoRow; ++y) {
-                    //int yd = (bmpWindow.bmHeight-1) - y;
-                    std::cout << "row " << y << std::endl;
+                    int32_t yd = y;
+                    if (!bmpInverseHeight) {
+                        yd = (height-1) - y;
+                    }
+                    //std::cout << "row " << y << std::endl;
                     uint8_t* rows = (uint8_t*)bmpData + y * byteRowStride;
-                    uint32_t* rowd = (uint32_t*)pixData + y * wordRowStride;    // yd
-                    for (guint32 x = 0; x < wordRowStride; ++x) {
+                    uint32_t* rowd = (uint32_t*)pixData + yd * wordRowStride;
+                    for (int32_t x = 0; x < width; ++x) {
                         //  windows   BGR?
                         uint32_t rgb;
                         if (bytePerPixel >= 3) {       // discard alpha in case it is there...
@@ -350,12 +360,12 @@ Preview::info()
                             rgb = (rows[0] << 16u) | (rows[0] << 8u) | rows[0];
                         }
                         //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
-                        rowd[0] = 0xff000000u | rgb;
-                        rows += bytePerPixel;
+                        *rowd = 0xff000000u | rgb;
                         ++rowd;
+                        rows += bytePerPixel;
                     }
                 }
-                queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow);
+                queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
                 m_RowLast = uptoRow;
             }
         }
