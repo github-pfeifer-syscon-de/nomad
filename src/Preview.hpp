@@ -85,7 +85,7 @@ protected:
     bool on_button_release_event(GdkEventButton* event) override;
     void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf);
-    void info();
+    void scanProgress();
     std::string dump(const guint8 *data, gsize size);
 
 private:

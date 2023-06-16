@@ -51,6 +51,256 @@ createWiaDeviceManager( IWiaDevMgr **ppWiaDevMgr ) //XP or earlier
 }
 
 
+WiaProperty::WiaProperty(STATPROPSTG& nextWiaPropertyStorage)
+{
+    if( NULL != nextWiaPropertyStorage.lpwstrName ) {
+        m_name = StringUtils::utf8_encode(nextWiaPropertyStorage.lpwstrName);
+    }
+    m_propid = nextWiaPropertyStorage.propid;
+}
+
+Glib::ustring
+WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
+{
+    PROPVARIANT propvar;
+    PropVariantInit( &propvar );
+    PROPSPEC propspec;
+    propspec.ulKind = PRSPEC_PROPID;
+    propspec.propid = m_propid;
+
+    Glib::ustring ret = " Name = " + m_name + "\n";
+    HRESULT hr = pWiaPropertyStorage->ReadMultiple( 1, &propspec, &propvar );
+    if( FAILED(hr) ) {
+        ret += Glib::strintf("Error %d ReadMultiple ", hr);
+    }
+    else {
+        // Display the property value, type, and so on.
+        ret += Glib::ustring::sprintf("   PropID = %d VarType = %s\n"
+            ,  m_propid,  convertVarTypeToString( propvar.vt));
+
+        auto value = convertValueToString(propvar);
+        ret += "   Value = " + value;
+    }
+    return ret;
+}
+
+// see https://learn.microsoft.com/en-us/windows/win32/stg/enumall-sample
+Glib::ustring
+WiaProperty::convertVarTypeToString(VARTYPE vt)
+{
+
+    // Create a string using the basic type.
+    Glib::ustring ret;
+    switch( vt & VT_TYPEMASK )
+    {
+    case VT_EMPTY:
+        ret = "VT_EMPTY";
+        break;
+    case VT_NULL:
+        ret  ="VT_NULL";
+        break;
+    case VT_I2:
+        ret = "VT_I2";
+        break;
+    case VT_I4:
+        ret = "VT_I4";
+        break;
+    case VT_I8:
+        ret = "VT_I8";
+        break;
+    case VT_UI2:
+        ret = "VT_UI2";
+        break;
+    case VT_UI4:
+        ret = "VT_UI4";
+        break;
+    case VT_UI8:
+        ret = "VT_UI8";
+        break;
+    case VT_R4:
+        ret = "VT_R4";
+        break;
+    case VT_R8:
+        ret = "VT_R8";
+        break;
+    case VT_CY:
+        ret = "VT_CY";
+        break;
+    case VT_DATE:
+        ret = "VT_DATE";
+        break;
+    case VT_BSTR:
+        ret = "VT_BSTR";
+        break;
+    case VT_ERROR:
+        ret = "VT_ERROR";
+        break;
+    case VT_BOOL:
+        ret = "VT_BOOL";
+        break;
+    case VT_VARIANT:
+        ret = "VT_VARIANT";
+        break;
+    case VT_DECIMAL:
+        ret = "VT_DECIMAL";
+        break;
+    case VT_I1:
+        ret = "VT_I1";
+        break;
+    case VT_UI1:
+        ret = "VT_UI1";
+        break;
+    case VT_INT:
+        ret = "VT_INT";
+        break;
+    case VT_UINT:
+        ret = "VT_UINT";
+        break;
+    case VT_VOID:
+        ret = "VT_VOID";
+        break;
+    case VT_SAFEARRAY:
+        ret = "VT_SAFEARRAY";
+        break;
+    case VT_USERDEFINED:
+        ret = "VT_USERDEFINED";
+        break;
+    case VT_LPSTR:
+        ret = "VT_LPSTR";
+        break;
+    case VT_LPWSTR:
+        ret = "VT_LPWSTR";
+        break;
+    case VT_RECORD:
+        ret = "VT_RECORD";
+        break;
+    case VT_FILETIME:
+        ret = "VT_FILETIME";
+        break;
+    case VT_BLOB:
+        ret = "VT_BLOB";
+        break;
+    case VT_STREAM:
+        ret = "VT_STREAM";
+        break;
+    case VT_STORAGE:
+        ret = "VT_STORAGE";
+        break;
+    case VT_STREAMED_OBJECT:
+        ret = "VT_STREAMED_OBJECT";
+        break;
+    case VT_STORED_OBJECT:
+        ret = "VT_BLOB_OBJECT";
+        break;
+    case VT_CF:
+        ret = "VT_CF";
+        break;
+    case VT_CLSID:
+        ret = "VT_CLSID";
+        break;
+    default:
+        ret = Glib::ustring::sprintf("Unknown (%d)", vt & VT_TYPEMASK );
+        break;
+    }
+
+
+    // Add the type modifiers, if present.
+    if( vt & VT_VECTOR ) {
+        ret += " | VT_VECTOR";
+    }
+    if( vt & VT_ARRAY ) {
+        ret += " | VT_ARRAY";
+    }
+    if( vt & VT_RESERVED ) {
+        ret += " | VT_RESERVED";
+    }
+    return ret;
+}
+
+Glib::ustring
+WiaProperty::convertValueToString( const PROPVARIANT &propvar)
+{
+
+    // Based on the type, put the value into pwszValue as a string.
+    Glib::ustring ret;
+    switch( propvar.vt )
+    {
+    case VT_EMPTY:
+        ret = "";
+        break;
+    case VT_NULL:
+        ret = "";
+        break;
+    case VT_I2:
+        ret = Glib::ustring::sprintf( "%04d", (int)propvar.iVal );
+        break;
+    case VT_I4:
+    case VT_INT:
+        ret = Glib::ustring::sprintf( "%d", propvar.lVal );
+        break;
+    case VT_I8:
+        ret = Glib::ustring::sprintf( "%ld", propvar.hVal );
+        break;
+    case VT_UI2:
+        ret = Glib::ustring::sprintf( "%04u", propvar.uiVal );
+        break;
+    case VT_UI4:
+    case VT_UINT:
+        ret = Glib::ustring::sprintf( "%u", propvar.ulVal );
+        break;
+    case VT_UI8:
+        ret = Glib::ustring::sprintf( "%lu", propvar.uhVal );
+        break;
+    case VT_R4:
+        ret = Glib::ustring::sprintf( "%f", propvar.fltVal );
+        break;
+    case VT_R8:
+        ret = Glib::ustring::sprintf( "%lf", propvar.dblVal );
+        break;
+    case VT_BSTR:
+        ret = Glib::ustring::sprintf( "\"%s\"",
+                     StringUtils::utf8_encode(propvar.bstrVal) );
+        break;
+    case VT_ERROR:
+        ret = Glib::ustring::sprintf( "0x%08X", propvar.scode );
+        break;
+    case VT_BOOL:
+        ret = VARIANT_TRUE == propvar.boolVal ? "True" : "False";
+        break;
+    case VT_I1:
+        ret = Glib::ustring::sprintf( "%02d", propvar.cVal );
+        break;
+    case VT_UI1:
+        ret = Glib::ustring::sprintf( "%02u", propvar.bVal );
+        break;
+    case VT_VOID:
+        ret = "";
+        break;
+    case VT_LPSTR:
+        ret = Glib::ustring::sprintf( "\"%s\"", propvar.pszVal );
+        break;
+    case VT_LPWSTR:
+        ret = Glib::ustring::sprintf( "\"%s\"", StringUtils::utf8_encode(propvar.pwszVal) );
+        break;
+    case VT_FILETIME:
+        ret = Glib::ustring::sprintf( "%08x:%08x",
+                     propvar.filetime.dwHighDateTime,
+                     propvar.filetime.dwLowDateTime );
+        break;
+    case VT_CLSID:
+        WCHAR pwszValue[64];
+        pwszValue[0] = L'\0';
+        StringFromGUID2( *propvar.puuid, pwszValue, sizeof(pwszValue)/sizeof(pwszValue[0]) );
+        ret = StringUtils::utf8_encode(pwszValue);
+        break;
+    default:
+        ret = "...";
+        break;
+    }
+    return ret;
+}
+
+
 HRESULT  //XP or earlier:
 WiaDevice::createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID )
 {
@@ -97,6 +347,64 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, CWiaDataCallback
     HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
     if (SUCCEEDED(hr))
     {
+
+        ULONG ulNumProps = 0;
+        HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
+        if (SUCCEEDED(hr)) {
+            std::cout << "numProps " << ulNumProps << std::endl;
+        }
+        else {
+            std::cout << "Error " << hr << " pWiaPropertyStorage->GetCount" << std::endl;
+        }
+
+        IEnumSTATPROPSTG* penum = nullptr;
+        hr = pWiaPropertyStorage->Enum(&penum);
+        if (SUCCEEDED(hr)) {
+            while (S_OK == hr) {
+                //
+                // Get the next device's property storage interface pointer
+                //
+                STATPROPSTG nextWiaPropertyStorage{0};
+                hr = penum->Next(1, &nextWiaPropertyStorage, NULL);
+
+                //
+                // pWiaEnumDevInfo->Next will return S_FALSE when the list is
+                // exhausted, so check for S_OK before using the returned
+                // value.
+                //
+                if (hr == S_OK) {
+                    auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
+                    m_properties.push_back(property);
+                    std::cout << "-------------------------------------------" << std::endl
+                              << property->info(pWiaPropertyStorage) << std::endl;
+                }
+            }
+
+            //
+            // If the result of the enumeration is S_FALSE (which
+            // is normal), change it to S_OK.
+            //
+            if (S_FALSE == hr) {
+                hr = S_OK;
+            }
+
+            //
+            // Release the enumerator
+            //
+            penum->Release();
+            penum = NULL;
+        }
+        else {
+            std::cout << "Error " << hr << " pWiaPropertyStorage->Enum" << std::endl;
+        }
+
+//        HRESULT hr = pWiaPropertyStorage->ReadPropertyNames();
+//        if (SUCCEEDED(hr)) {
+//            std::cout << "numProps " << ulNumProps << std::endl;
+//        }
+//        else {
+//            std::cout << "Error " << hr << " pWiaPropertyStorage->ReadPropertyNames" << std::endl;
+//        }
         //
         // Prepare PROPSPECs and PROPVARIANTs for setting the
         // media type and format
@@ -108,7 +416,7 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, CWiaDataCallback
         //
         // Use BMP as the output format
         //
-        GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_BMP;
+        GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_MEMORYBMP;    // seems to have not much influence
 
         //
         // Initialize the PROPSPECs
@@ -152,13 +460,27 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, CWiaDataCallback
                     if (SUCCEEDED(hr))
                     {
                         if (!trnsfFile) {
+//                            WIA_EXTENDED_TRANSFER_INFO  extendedTransferInfo;
+//                            hr = pWiaDataTransfer->idtGetExtendedTransferInfo(&extendedTransferInfo);
+//                            if (hr == S_OK) {
+//                                // will give maxBuf 4294967295 minBuf 0 optBuf 0 num 1
+//                                std::cout << "idtGetExtendedTransferInfo"
+//                                          << " maxBuf " << extendedTransferInfo.ulMaxBufferSize
+//                                          << " minBuf " << extendedTransferInfo.ulMinBufferSize
+//                                          << " optBuf " << extendedTransferInfo.ulOptimalBufferSize
+//                                          << " num " << extendedTransferInfo.ulNumBuffers
+//                                          << std::endl;
+//                            }
+//                            else {
+//                                std::cout << "idtGetExtendedTransferInfo hr " << hr << std::endl;
+//                            }
+
                             // will transfer in memory
                             WIA_DATA_TRANSFER_INFO dataTrsfInfo{0};
                             dataTrsfInfo.ulSize = sizeof(WIA_DATA_TRANSFER_INFO);
-                            dataTrsfInfo.ulBufferSize = 327675;  // with 0 the used buffer is 64k and called multiple times
+                            dataTrsfInfo.ulBufferSize = 327680;  // (5*65536) with 0 the used buffer is 64k and called multiple times
                             dataTrsfInfo.ulSection = 0; // supports dedicated transfer pointer
                             dataTrsfInfo.bDoubleBuffer = FALSE;
-
 
                             hr = pWiaDataTransfer->idtGetBandedData( &dataTrsfInfo, pWiaDataCallback );
                             if (S_OK == hr)
@@ -224,10 +546,14 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, CWiaDataCallback
         pWiaPropertyStorage->Release();
         pWiaPropertyStorage = NULL;
     }
+    else {
+        std::cout << "error pWiaItem not a IID_IWiaPropertyStorage!" << std::endl;
+    }
 
     return hr;
 }
 
+// this will call transfer if a image item is found
 HRESULT
 WiaDevice::enumerateItems( IWiaItem *pWiaItem, CWiaDataCallback *pCallback ) //XP or earlier
 {
@@ -276,18 +602,17 @@ WiaDevice::enumerateItems( IWiaItem *pWiaItem, CWiaDataCallback *pCallback ) //X
                     //
                     if (S_OK == hr) {
                         LONG lchldItemType = 0;
-                        pChildWiaItem->GetItemType(&lchldItemType);
+                        hr = pChildWiaItem->GetItemType(&lchldItemType);
                         //std::cout << "   " << std::hex << chldItemType << std::dec
                         //  << ((chldItemType & WiaItemTypeImage) != 0 ? " image" : "")
                         //  << std::endl;
-                        if (lchldItemType & WiaItemTypeImage) {
+                        if (hr == S_OK && lchldItemType & WiaItemTypeImage) {
                             hr = transferWiaItem(pChildWiaItem, false, pCallback);
                         }
                         //
                         // Recurse into this item.
                         //
                         hr = enumerateItems(pChildWiaItem, pCallback);
-
 
                         //
                         // Release this item.
@@ -405,7 +730,7 @@ WinScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
             //std::cout << "WIA_DIP_DEV_DESC: " << StringUtils::utf8_encode(PropVar[2].bstrVal) << std::endl;
             devDescr = PropVar[2].bstrVal;
         }
-        auto dev = std::make_shared<WiaDevice>(this, devId);
+        auto dev = std::make_shared<WiaDevice>(this, devId, devName, devDescr);
         m_devices.push_back(dev);
 
         //
@@ -489,9 +814,11 @@ WinScan::enumerateWiaDevices() //XP or earlier
     return hr;
 }
 
-WiaDevice::WiaDevice(WinScan* winScan, const BSTR& devId)
+WiaDevice::WiaDevice(WinScan* winScan, const BSTR& devId, const BSTR& devName, const BSTR& devDescr)
 : m_winScan{winScan}
 , m_pWiaDevice{nullptr}
+, m_devName{StringUtils::utf8_encode(devName)}
+, m_devDescr{StringUtils::utf8_encode(devDescr)}
 {
     HRESULT hr = createWiaDevice(winScan->getWiaDevMgr(), devId);
     if (SUCCEEDED(hr)) {

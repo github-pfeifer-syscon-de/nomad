@@ -23,16 +23,21 @@
         </item>
       </section>
     </submenu>
+    <submenu id="scen">
+      <attribute name="label" translatable="yes">Scan</attribute>
+      <section>
+        <item>
+          <attribute translatable="yes" name="label">Scan</attribute>
+          <attribute name="action">win.scan</attribute>
+        </item>
+      </section>
+    </submenu>
     <submenu id="capture">
       <attribute name="label" translatable="yes">Capture</attribute>
       <section>
         <item>
           <attribute translatable="yes" name="label">Capture</attribute>
           <attribute name="action">win.capture</attribute>
-        </item>
-        <item>
-          <attribute translatable="yes" name="label">Scan</attribute>
-          <attribute name="action">win.scan</attribute>
         </item>
         <item>
           <attribute translatable="yes" name="label">Capture window</attribute>

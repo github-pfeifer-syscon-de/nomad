@@ -19,6 +19,7 @@
 #pragma once
 
 #include <vector>
+#include <list>
 #include <memory>
 #include <windows.h>
 #include <wia.h>
@@ -27,9 +28,26 @@
 
 class WinScan;
 
-class WiaDevice {
+class WiaProperty
+{
 public:
-    WiaDevice(WinScan* winScan, const BSTR& devId);
+    WiaProperty(STATPROPSTG& wiaPropertyStorage);
+    WiaProperty(const WiaProperty& orig) = default;
+    virtual ~WiaProperty() = default;
+
+    Glib::ustring info(IWiaPropertyStorage *pWiaPropertyStorage);
+protected:
+    Glib::ustring convertVarTypeToString(VARTYPE vt);
+    Glib::ustring convertValueToString( const PROPVARIANT &propvar);
+private:
+    Glib::ustring m_name;
+    PROPID m_propid;
+};
+
+class WiaDevice
+{
+public:
+    WiaDevice(WinScan* winScan, const BSTR& devId, const BSTR& devName, const BSTR& devDescr);
     explicit WiaDevice(const WiaDevice& orig) = delete;
     virtual ~WiaDevice();
 
@@ -42,9 +60,13 @@ protected:
 private:
     WinScan* m_winScan;
     IWiaItem* m_pWiaDevice;
+    Glib::ustring m_devName;
+    Glib::ustring m_devDescr;
+    std::list<std::shared_ptr<WiaProperty>> m_properties;
 };
 
-class WinScan {
+class WinScan
+{
 public:
     WinScan();
     explicit WinScan(const WinScan& orig) = delete;

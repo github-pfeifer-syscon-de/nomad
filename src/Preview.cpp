@@ -81,7 +81,7 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
             | Gdk::EventMask::BUTTON_RELEASE_MASK
             | Gdk::EventMask::BUTTON_MOTION_MASK);
 
-    m_dispatcher.connect(sigc::mem_fun(*this, &Preview::info));
+    m_dispatcher.connect(sigc::mem_fun(*this, &Preview::scanProgress));
     std::array<int,2> size {800,600};
     Gdk::Color color;
     color.set("#000");
@@ -293,7 +293,7 @@ Preview::dump(const guint8 *data, gsize size)
 
 
 void
-Preview::info()
+Preview::scanProgress()
 {
     if (m_worker) {
         uint32_t size = 0;
@@ -312,7 +312,7 @@ Preview::info()
                           << " compress " << std::hex << bi->biCompression << std::dec
                           << std::endl;
                 if (bi->biWidth >= 0) {
-                    std::array<int,2> size {bi->biWidth,std::abs(bi->biHeight)};
+                    std::array<int,2> size {std::abs(bi->biWidth),std::abs(bi->biHeight)};
                     Gdk::Color color;
                     color.set("#000");
                     create(size, color);
@@ -335,13 +335,11 @@ Preview::info()
                 int32_t width = std::abs(bi->biWidth);
                 uint8_t* bmpData = p + bi->biSize;
                 uint8_t* pixData = m_pixbuf->get_pixels();
-                // as it seems pixel are always dword aligned at least visually we get a gray image
                 uint32_t bytePerPixel = bi->biBitCount / 8;
-                //uint32_t wordRowStride = ((bi->biWidth * bi->biBitCount) / 32);
                 uint32_t wordRowStride = ((width * bi->biBitCount + 31) / 32);
                 uint32_t byteRowStride = wordRowStride * 4;
                 int32_t uptoRow = std::min(static_cast<int32_t>((size - bi->biSize) / byteRowStride), height);
-                std::cout << "uptoRow " << uptoRow << " word stride " <<  wordRowStride << " byte stride " << byteRowStride << std::endl;
+                std::cout << "uptoRow " << uptoRow << " byte stride " << byteRowStride << std::endl;
                 for (int32_t y = m_RowLast; y < uptoRow; ++y) {
                     int32_t yd = y;
                     if (!bmpInverseHeight) {
@@ -356,7 +354,7 @@ Preview::info()
                         if (bytePerPixel >= 3) {       // discard alpha in case it is there...
                             rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
                         }
-                        else if (bytePerPixel <= 1) {  // grayscale
+                        else {  // grayscale
                             rgb = (rows[0] << 16u) | (rows[0] << 8u) | rows[0];
                         }
                         //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
@@ -365,7 +363,9 @@ Preview::info()
                         rows += bytePerPixel;
                     }
                 }
-                queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
+                m_scaled.clear(); // need to refresh
+                //queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
+                queue_draw();   // as the view is scaled no direct relationship...
                 m_RowLast = uptoRow;
             }
         }
