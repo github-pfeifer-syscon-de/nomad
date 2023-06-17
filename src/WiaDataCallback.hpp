@@ -38,7 +38,7 @@
 // IWiaDataTransfer::idtGetData, only status messages are sent,
 // and the data is transferred in a file.
 //
-class CWiaDataCallback
+class WiaDataCallback
 : public IWiaDataCallback
 , public GenericCallback
 {
@@ -55,8 +55,8 @@ public:
     //
     // Constructor and destructor
     //
-    CWiaDataCallback(Glib::Dispatcher& dispatcher);
-    virtual ~CWiaDataCallback();
+    WiaDataCallback(Glib::Dispatcher& dispatcher);
+    virtual ~WiaDataCallback();
 
     //
     // IUnknown methods

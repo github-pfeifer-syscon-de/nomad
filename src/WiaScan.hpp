@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2020 rpf
+ * Copyright (C) 2023 rpf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,33 +18,35 @@
 
 #pragma once
 
-#include <gtkmm.h>
+#include <vector>
+#include <list>
+#include <memory>
+#include <windows.h>
+#include <wia.h>
 
-#include "NomadWin.hpp"
+#include "WiaDataCallback.hpp"
+#include "WiaProperty.hpp"
+#include "WiaDevice.hpp"
 
-#undef NOMAD_DEBUG
-
-/*
- * get the application up and running
- *   about and help dialog
- */
-class NomadApp : public Gtk::Application {
+class WiaScan
+{
 public:
-    NomadApp(int arc, char **argv);
-    explicit NomadApp(const NomadApp& nomadApp) = delete;
-    virtual ~NomadApp() = default;
+    WiaScan();
+    explicit WiaScan(const WiaScan& orig) = delete;
+    WiaScan& operator=(const WiaScan& other) = delete;
+    virtual ~WiaScan();
+    HRESULT enumerateWiaDevices();
+    HRESULT readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage);
 
-    void on_activate() override;
-    void on_startup() override;
-    Glib::RefPtr<Gtk::Builder> get_menu_builder();
-
-    Glib::ustring get_exec_path();
+    IWiaDevMgr* getWiaDevMgr() {
+        return m_pWiaDevMgr;
+    }
+    std::vector<std::shared_ptr<WiaDevice>> getDevices() {
+        return m_devices;
+    }
 private:
-    NomadWin *m_nomadAppWindow;
-    Glib::ustring m_exec;
-    Glib::RefPtr<Gtk::Builder> m_builder;
+    std::vector<std::shared_ptr<WiaDevice>> m_devices;
+    IWiaDevMgr* m_pWiaDevMgr{nullptr};
 
-    void on_action_quit();
-    void on_action_about();
-    void on_action_help();
 };
+

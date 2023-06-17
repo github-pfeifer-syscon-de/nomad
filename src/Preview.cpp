@@ -28,7 +28,7 @@
 #include "TextShape.hpp"
 
 #ifdef __WIN32__
-#include "WinScan.hpp"
+#include "WiaScan.hpp"
 
 WorkThread::WorkThread(Glib::Dispatcher& dispatcher)
 : m_dispatcher{dispatcher}
@@ -38,11 +38,11 @@ WorkThread::WorkThread(Glib::Dispatcher& dispatcher)
 void
 WorkThread::run()
 {
-    WinScan winScan;
+    WiaScan winScan;
     auto devs = winScan.getDevices();
     std::cout << "Devs " << devs.size() << std::endl;
     if (!devs.empty()) {
-        m_pCallback  = new CWiaDataCallback(m_dispatcher);
+        m_pCallback  = new WiaDataCallback(m_dispatcher);
         if (m_pCallback) {
             auto dev = devs[0];
             bool r = dev->scan(m_pCallback);
@@ -54,7 +54,7 @@ WorkThread::run()
     }
 }
 
-CWiaDataCallback*
+WiaDataCallback*
 WorkThread::getDataCallback()
 {
     return m_pCallback;

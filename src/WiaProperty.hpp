@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2020 rpf
+ * Copyright (C) 2023 rpf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,33 +18,22 @@
 
 #pragma once
 
-#include <gtkmm.h>
+#include <glibmm.h>
+#include <windows.h>
+#include <wia.h>
 
-#include "NomadWin.hpp"
-
-#undef NOMAD_DEBUG
-
-/*
- * get the application up and running
- *   about and help dialog
- */
-class NomadApp : public Gtk::Application {
+class WiaProperty
+{
 public:
-    NomadApp(int arc, char **argv);
-    explicit NomadApp(const NomadApp& nomadApp) = delete;
-    virtual ~NomadApp() = default;
+    WiaProperty(STATPROPSTG& wiaPropertyStorage);
+    WiaProperty(const WiaProperty& orig) = default;
+    virtual ~WiaProperty() = default;
 
-    void on_activate() override;
-    void on_startup() override;
-    Glib::RefPtr<Gtk::Builder> get_menu_builder();
-
-    Glib::ustring get_exec_path();
+    Glib::ustring info(IWiaPropertyStorage *pWiaPropertyStorage);
+protected:
+    Glib::ustring convertVarTypeToString(VARTYPE vt);
+    Glib::ustring convertValueToString( const PROPVARIANT &propvar);
 private:
-    NomadWin *m_nomadAppWindow;
-    Glib::ustring m_exec;
-    Glib::RefPtr<Gtk::Builder> m_builder;
-
-    void on_action_quit();
-    void on_action_about();
-    void on_action_help();
+    Glib::ustring m_name;
+    PROPID m_propid;
 };

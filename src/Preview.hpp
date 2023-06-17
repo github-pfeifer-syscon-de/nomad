@@ -31,7 +31,7 @@ class TextInfo;
 
 
 #ifdef __WIN32__
-class CWiaDataCallback;
+class WiaDataCallback;
 //
 //void preamble (void) {
 //    std::cout << "preamble\n";
@@ -53,10 +53,10 @@ public:
     WorkThread(Glib::Dispatcher& dispatcher);
     virtual ~WorkThread();
     void run();
-    CWiaDataCallback* getDataCallback();
+    WiaDataCallback* getDataCallback();
 private:
     Glib::Dispatcher& m_dispatcher;
-    CWiaDataCallback* m_pCallback;
+    WiaDataCallback* m_pCallback;
 
 };
 #endif

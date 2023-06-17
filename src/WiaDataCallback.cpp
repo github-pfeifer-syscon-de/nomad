@@ -18,9 +18,9 @@
 
 #include <iostream>
 
-#include "CWiaDataCallback.hpp"
+#include "WiaDataCallback.hpp"
 
-CWiaDataCallback::CWiaDataCallback(Glib::Dispatcher& dispatcher)
+WiaDataCallback::WiaDataCallback(Glib::Dispatcher& dispatcher)
 : m_cRef(1)
 , m_pBuffer{NULL}
 , m_nBufferLength{0}
@@ -31,7 +31,7 @@ CWiaDataCallback::CWiaDataCallback(Glib::Dispatcher& dispatcher)
 {
 }
 
-CWiaDataCallback::~CWiaDataCallback()
+WiaDataCallback::~WiaDataCallback()
 {
     //
     // Free the item buffer
@@ -46,7 +46,7 @@ CWiaDataCallback::~CWiaDataCallback()
 }
 
 HRESULT CALLBACK
-CWiaDataCallback::QueryInterface( REFIID riid, void **ppvObject )
+WiaDataCallback::QueryInterface( REFIID riid, void **ppvObject )
 {
     //
     // Validate arguments
@@ -61,11 +61,11 @@ CWiaDataCallback::QueryInterface( REFIID riid, void **ppvObject )
     //
     if (IsEqualIID( riid, IID_IUnknown ))
     {
-        *ppvObject = static_cast<CWiaDataCallback *>(this);
+        *ppvObject = static_cast<WiaDataCallback *>(this);
     }
     else if (IsEqualIID( riid, IID_IWiaDataCallback ))
     {
-        *ppvObject = static_cast<CWiaDataCallback *>(this);
+        *ppvObject = static_cast<WiaDataCallback *>(this);
     }
     else
     {
@@ -81,13 +81,13 @@ CWiaDataCallback::QueryInterface( REFIID riid, void **ppvObject )
 }
 
 ULONG CALLBACK
-CWiaDataCallback::AddRef()
+WiaDataCallback::AddRef()
 {
     return InterlockedIncrement(&m_cRef);
 }
 
 ULONG CALLBACK
-CWiaDataCallback::Release()
+WiaDataCallback::Release()
 {
     LONG cRef = InterlockedDecrement(&m_cRef);
     if (0 == cRef)
@@ -98,7 +98,7 @@ CWiaDataCallback::Release()
 }
 
 HRESULT __stdcall
-CWiaDataCallback::BandedDataCallback(
+WiaDataCallback::BandedDataCallback(
         LONG lMessage,
         LONG lStatus,
         LONG lPercentComplete,
@@ -205,7 +205,7 @@ CWiaDataCallback::BandedDataCallback(
 }
 
 uint8_t*
-CWiaDataCallback::getDataTransfered(uint32_t* bytesTransfered, int32_t* percentTransfered)
+WiaDataCallback::getDataTransfered(uint32_t* bytesTransfered, int32_t* percentTransfered)
 {
     *bytesTransfered = m_nBytesTransfered;
     *percentTransfered = m_percentComplete;
