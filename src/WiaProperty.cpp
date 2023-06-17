@@ -31,25 +31,88 @@ WiaProperty::WiaProperty(STATPROPSTG& nextWiaPropertyStorage)
 }
 
 Glib::ustring
+WiaProperty::getFlags(ULONG flags)
+{
+    Glib::ustring ret;
+    if (flags & WIA_PROP_CACHEABLE) {
+        ret += " cacheable";
+    }
+    if (flags & WIA_PROP_FLAG) {
+        ret += " flag";
+    }
+    if (flags & WIA_PROP_LIST) {
+        ret += " list";
+    }
+    if (flags & WIA_PROP_NONE) {
+        ret += " none";
+    }
+    if (flags & WIA_PROP_RANGE) {
+        ret += " range";
+    }
+    if (flags & WIA_PROP_READ) {
+        ret += " read";
+    }
+    if (flags & WIA_PROP_RW) {
+        ret += " read/write";
+    }
+    if (flags & WIA_PROP_SYNC_REQUIRED) {
+        ret += " syncrequired";
+    }
+    if (flags & WIA_PROP_WRITE) {
+        ret += " write";
+    }
+    return ret;
+}
+
+Glib::ustring
 WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
 {
     PROPVARIANT propvar;
-    PropVariantInit( &propvar );
+    PropVariantInit(&propvar);
     PROPSPEC propspec;
     propspec.ulKind = PRSPEC_PROPID;
     propspec.propid = m_propid;
 
     Glib::ustring ret = " Name = " + m_name + "\n";
-    HRESULT hr = pWiaPropertyStorage->ReadMultiple( 1, &propspec, &propvar );
-    if( FAILED(hr) ) {
-        ret += Glib::ustring::sprintf("Error %d ReadMultiple ", hr);
-    }
-    else {
+    HRESULT hr = pWiaPropertyStorage->ReadMultiple(1, &propspec, &propvar);
+    if (SUCCEEDED(hr)) {
         // Display the property value, type, and so on.
         ret += Glib::ustring::sprintf("   PropID = %d VarType = %s\n"
             ,  m_propid,  convertVarTypeToString( propvar.vt));
-
-        ret += "   Value = " + convertValueToString(propvar);
+        ret += Glib::ustring::sprintf("   Value = %s\n", convertValueToString(propvar));
+        ULONG flags;
+        PROPVARIANT propAttribute;
+        PropVariantInit(&propAttribute);
+        hr = pWiaPropertyStorage->GetPropertyAttributes(1, &propspec, &flags, &propAttribute);
+        if (SUCCEEDED(hr)) {
+            ret += Glib::ustring::sprintf("   attribute flags %s ", getFlags(flags));
+            // only these cases are useful for us
+            if (flags & WIA_PROP_LIST) {
+                //if (propvarattr.vt == 4099) {
+                //ret += "list " + convertValueToString(propvarattr);
+                //}
+                //else {
+                //    std::cout << "unused variant type list " << propvarattr.vt << std::endl;
+                //}
+            }
+            if (flags & WIA_PROP_RANGE) {
+                //if (propvarattr.vt == 4099) {
+                //ret += "range " + convertValueToString(propvarattr);
+                //}
+                //else {
+                //    std::cout << "unused variant type range " << propvarattr.vt << std::endl;
+                //}
+            }
+            PropVariantClear(&propAttribute);
+        }
+        else {
+            ret += Glib::ustring("   attribute error %d", hr);
+        }
+        // required to free?
+        PropVariantClear(&propvar);
+    }
+    else {
+        ret += Glib::ustring::sprintf("Error %d ReadMultiple ", hr);
     }
     return ret;
 }
@@ -192,7 +255,7 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
 
     // Based on the type, put the value into ret as a string.
     Glib::ustring ret;
-    switch( propvar.vt )    //  & VT_TYPEMASK
+    switch (propvar.vt)    // VT_TYPEMASK is left out to get not confused by complex types
     {
     case VT_EMPTY:
         ret = "";
@@ -263,7 +326,42 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
         ret = StringUtils::utf8_encode(pwszValue);
         break;
     default:
-        ret = "...";
+        if (propvar.vt & VT_VECTOR) {
+            switch (propvar.vt & VT_TYPEMASK) {
+                case VT_I4:
+                    LPSAFEARRAY *pparray;
+                    PROPVARIANT *pvarVal;
+                    if (propvar.parray) {
+                        ret = Glib::ustring::sprintf("Vector elements %d", propvar.parray->cbElements);
+                    }
+                    else {
+                        ret = Glib::ustring::sprintf("Vector ?");
+                    }
+                    break;
+                default:
+                    ret = Glib::ustring::sprintf("Vector unhandled vt 0x%0x", propvar.vt );
+                    break;
+            }
+        }
+        else if (propvar.vt & VT_ARRAY) {
+            switch (propvar.vt & VT_TYPEMASK) {
+                case VT_I4:
+                    // propvar.parray->pvData
+                    if (propvar.parray) {
+                        ret = Glib::ustring::sprintf("Array elements %d", propvar.parray->cbElements);
+                    }
+                    else {
+                        ret = Glib::ustring::sprintf("Array ?");
+                    }
+                    break;
+                default:
+                    ret = Glib::ustring::sprintf("Array unhandled vt 0x%0x", propvar.vt );
+                    break;
+            }
+        }
+        else {
+            ret = Glib::ustring::sprintf("Composite unhandled vt 0x%0x", propvar.vt );
+        }
         break;
     }
     return ret;

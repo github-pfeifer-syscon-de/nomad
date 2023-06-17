@@ -19,8 +19,65 @@
 #include <iostream>
 
 #include "WiaDevice.hpp"
+#include "WiaScan.hpp"
 #include "StringUtils.hpp"
 #include "WiaProperty.hpp"
+
+WiaDevice::WiaDevice(WiaScan* winScan, const BSTR& devId, const BSTR& devName, const BSTR& devDescr)
+: m_winScan{winScan}
+, m_pWiaDevice{nullptr}
+, m_devName{StringUtils::utf8_encode(devName)}
+, m_devDescr{StringUtils::utf8_encode(devDescr)}
+{
+    HRESULT hr = createWiaDevice(winScan->getWiaDevMgr(), devId);
+    if (SUCCEEDED(hr)) {
+
+    }
+    else {
+        std::string message = std::system_category().message(hr);
+        std::cout << "Error " << hr
+                  << " createWiaDevice " << message << std::endl;
+    }
+
+}
+
+WiaDevice::~WiaDevice()
+{
+    if (m_pWiaDevice) {
+       m_pWiaDevice->Release();
+       m_pWiaDevice = nullptr;
+    }
+}
+
+
+bool
+WiaDevice::scan(WiaDataCallback *pCallback)
+{
+    if (m_pWiaDevice) {
+        IWiaItem *pChildWiaItem = nullptr;
+        HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
+        if (SUCCEEDED(hr)) {
+            if (pChildWiaItem) {
+                hr = transferWiaItem(pChildWiaItem, false, pCallback);
+                pChildWiaItem->Release();
+                pChildWiaItem = nullptr;
+            }
+            else {
+                std::cout << "Could not identify image item!" << std::endl;
+                return false;
+            }
+
+            return SUCCEEDED(hr);
+        }
+        else {
+            std::string message = std::system_category().message(hr);
+            std::cout << "Error " << hr
+                      << " enumerateItems " << message << std::endl;
+        }
+    }
+    return false;
+}
+
 
 HRESULT  //XP or earlier:
 WiaDevice::createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID )
@@ -48,26 +105,40 @@ WiaDevice::createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID )
     return hr;
 }
 
-
-
-HRESULT
-WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback)
+std::list<std::shared_ptr<WiaProperty>>
+WiaDevice::getProperties()
 {
-    //
-    // Validate arguments
-    //
-    if (NULL == pWiaItem)
-    {
-        return E_INVALIDARG;
+    if (m_properties.empty()) {
+        IWiaItem *pChildWiaItem = nullptr;
+        HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
+        if (SUCCEEDED(hr)) {
+            if (pChildWiaItem) {
+                IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+                HRESULT hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+                if (SUCCEEDED(hr)) {
+                    getProperties(pWiaPropertyStorage, "image");
+                }
+                else {
+                    std::cout <<  "Item not convertible IID_IWiaPropertyStorage" << std::endl;
+                }
+                pChildWiaItem->Release();
+                pChildWiaItem = nullptr;
+            }
+            else {
+                std::cout << "Could not identify image item!" << std::endl;
+            }
+        }
+        else {
+            std::cout << "Error enumerate !" << std::endl;
+        }
     }
+    return m_properties;
+}
 
-    //
-    // Get the IWiaPropertyStorage interface so you can set required properties.
-    //
-    IWiaPropertyStorage *pWiaPropertyStorage = NULL;
-    HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
-    if (SUCCEEDED(hr))
-    {
+void
+WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section)
+{
+#ifdef OBSOLET
 //        ULONG ulNumProps = 0;
 //        HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
 //        if (SUCCEEDED(hr)) {
@@ -76,46 +147,7 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
 //        else {
 //            std::cout << "Error " << hr << " pWiaPropertyStorage->GetCount" << std::endl;
 //        }
-
-        IEnumSTATPROPSTG* penum = nullptr;
-        hr = pWiaPropertyStorage->Enum(&penum);
-        if (SUCCEEDED(hr)) {
-            while (S_OK == hr) {
-                //
-                // Get the next device's property storage interface pointer
-                //
-                STATPROPSTG nextWiaPropertyStorage{0};
-                hr = penum->Next(1, &nextWiaPropertyStorage, NULL);
-
-                // pWiaEnumDevInfo->Next will return S_FALSE when the list is
-                // exhausted, so check for S_OK before using the returned
-                // value.
-                if (hr == S_OK) {
-                    auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
-                    m_properties.push_back(property);
-                    std::cout << "-------------------------------------------" << std::endl
-                              << property->info(pWiaPropertyStorage) << std::endl;
-                }
-            }
-
-            //
-            // If the result of the enumeration is S_FALSE (which
-            // is normal), change it to S_OK.
-            //
-            if (S_FALSE == hr) {
-                hr = S_OK;
-            }
-
-            //
-            // Release the enumerator
-            //
-            penum->Release();
-            penum = NULL;
-        }
-        else {
-            std::cout << "Error " << hr << " pWiaPropertyStorage->Enum" << std::endl;
-        }
-
+        getProperties(pWiaPropertyStorage, "image");
 //        HRESULT hr = pWiaPropertyStorage->ReadPropertyNames();
 //        if (SUCCEEDED(hr)) {
 //            std::cout << "numProps " << ulNumProps << std::endl;
@@ -123,6 +155,68 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
 //        else {
 //            std::cout << "Error " << hr << " pWiaPropertyStorage->ReadPropertyNames" << std::endl;
 //        }
+        , WiaDataCallback *pCallback
+#endif
+
+
+    IEnumSTATPROPSTG* penum = nullptr;
+    HRESULT hr = pWiaPropertyStorage->Enum(&penum);
+    if (SUCCEEDED(hr)) {
+        while (S_OK == hr) {
+            //
+            // Get the next device's property storage interface pointer
+            //
+            STATPROPSTG nextWiaPropertyStorage{0};
+            hr = penum->Next(1, &nextWiaPropertyStorage, NULL);
+
+            // pWiaEnumDevInfo->Next will return S_FALSE when the list is
+            // exhausted, so check for S_OK before using the returned
+            // value.
+            if (hr == S_OK) {
+                auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
+                m_properties.push_back(property);
+                if (!section.empty()) {
+                    std::cout << section << " ---------------------------------------" << std::endl
+                              << property->info(pWiaPropertyStorage) << std::endl;
+                }
+            }
+        }
+        //
+        // If the result of the enumeration is S_FALSE (which
+        // is normal), change it to S_OK.
+        //
+        if (S_FALSE == hr) {
+            hr = S_OK;
+        }
+
+        //
+        // Release the enumerator
+        //
+        penum->Release();
+        penum = NULL;
+    }
+    else {
+        std::cout << "Error " << hr << " pWiaPropertyStorage->Enum" << std::endl;
+    }
+
+}
+
+HRESULT
+WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback)
+{
+    //
+    // Validate arguments
+    //
+    if (NULL == pWiaItem) {
+        return E_INVALIDARG;
+    }
+
+    //
+    // Get the IWiaPropertyStorage interface so you can set required properties.
+    //
+    IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+    HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+    if (SUCCEEDED(hr)) {
         //
         // Prepare PROPSPECs and PROPVARIANTs for setting the
         // media type and format
@@ -271,9 +365,11 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
     return hr;
 }
 
-// this will call transfer if a image item is found
+
+
+// this will set pRetChildItem if found
 HRESULT
-WiaDevice::enumerateItems( IWiaItem *pWiaItem, WiaDataCallback *pCallback ) //XP or earlier
+WiaDevice::findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaItem)
 {
     //
     // Validate arguments
@@ -324,19 +420,22 @@ WiaDevice::enumerateItems( IWiaItem *pWiaItem, WiaDataCallback *pCallback ) //XP
                         //std::cout << "   " << std::hex << chldItemType << std::dec
                         //  << ((chldItemType & WiaItemTypeImage) != 0 ? " image" : "")
                         //  << std::endl;
-                        if (hr == S_OK && lchldItemType & WiaItemTypeImage) {
-                            hr = transferWiaItem(pChildWiaItem, false, pCallback);
+                        if (hr == S_OK && lchldItemType & typeMask) {
+                            *pRetChildWiaItem = pChildWiaItem;
+                            break;
                         }
                         //
                         // Recurse into this item.
                         //
-                        hr = enumerateItems(pChildWiaItem, pCallback);
-
+                        hr = findItem(pChildWiaItem, typeMask, pRetChildWiaItem);
                         //
                         // Release this item.
                         //
                         pChildWiaItem->Release();
                         pChildWiaItem = NULL;
+                        if (*pRetChildWiaItem) {
+                            break;
+                        }
                     }
                 }
 

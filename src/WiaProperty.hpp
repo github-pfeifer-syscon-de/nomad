@@ -33,6 +33,7 @@ public:
 protected:
     Glib::ustring convertVarTypeToString(VARTYPE vt);
     Glib::ustring convertValueToString( const PROPVARIANT &propvar);
+    Glib::ustring getFlags(ULONG flags);
 private:
     Glib::ustring m_name;
     PROPID m_propid;

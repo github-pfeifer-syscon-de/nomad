@@ -194,7 +194,6 @@ WiaScan::enumerateWiaDevices() //XP or earlier
                 //
                 readSomeWiaProperties(pWiaPropertyStorage);
 
-
                 //
                 // Release the device's IWiaPropertyStorage*
                 //
@@ -222,49 +221,6 @@ WiaScan::enumerateWiaDevices() //XP or earlier
     // Return the result of the enumeration
     //
     return hr;
-}
-
-WiaDevice::WiaDevice(WiaScan* winScan, const BSTR& devId, const BSTR& devName, const BSTR& devDescr)
-: m_winScan{winScan}
-, m_pWiaDevice{nullptr}
-, m_devName{StringUtils::utf8_encode(devName)}
-, m_devDescr{StringUtils::utf8_encode(devDescr)}
-{
-    HRESULT hr = createWiaDevice(winScan->getWiaDevMgr(), devId);
-    if (SUCCEEDED(hr)) {
-
-    }
-    else {
-        std::string message = std::system_category().message(hr);
-        std::cout << "Error " << hr
-                  << " createWiaDevice " << message << std::endl;
-    }
-}
-
-WiaDevice::~WiaDevice()
-{
-    if (m_pWiaDevice) {
-       m_pWiaDevice->Release();
-       m_pWiaDevice = nullptr;
-    }
-}
-
-bool
-WiaDevice::scan(WiaDataCallback *pCallback)
-{
-
-    if (m_pWiaDevice) {
-        HRESULT hr = enumerateItems(m_pWiaDevice, pCallback);
-        if (SUCCEEDED(hr)) {
-            return true;
-        }
-        else {
-            std::string message = std::system_category().message(hr);
-            std::cout << "Error " << hr
-                      << " enumerateItems " << message << std::endl;
-        }
-    }
-    return false;
 }
 
 WiaScan::WiaScan()

@@ -37,11 +37,12 @@ public:
     virtual ~WiaDevice();
 
     bool scan(WiaDataCallback *pCallback);
+    std::list<std::shared_ptr<WiaProperty>> getProperties();
 protected:
     HRESULT createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID );
-    HRESULT enumerateItems( IWiaItem *pWiaItem, WiaDataCallback *pCallback );
+    HRESULT findItem( IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaItem);
     HRESULT transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback);
-
+    void getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section);
 private:
     WiaScan* m_winScan;
     IWiaItem* m_pWiaDevice;

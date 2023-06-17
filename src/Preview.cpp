@@ -40,7 +40,6 @@ WorkThread::run()
 {
     WiaScan winScan;
     auto devs = winScan.getDevices();
-    std::cout << "Devs " << devs.size() << std::endl;
     if (!devs.empty()) {
         m_pCallback  = new WiaDataCallback(m_dispatcher);
         if (m_pCallback) {
@@ -86,6 +85,15 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     Gdk::Color color;
     color.set("#000");
     create(size, color);
+
+    // Keep some infos on foreground
+    WiaScan winScan;
+    auto devs = winScan.getDevices();
+    std::cout << "Devs " << devs.size() << std::endl;
+    if (!devs.empty()) {
+        auto dev = devs[0];
+        dev->getProperties();
+    }
 }
 
 void
