@@ -32,21 +32,8 @@ class TextInfo;
 
 #ifdef __WIN32__
 class WiaDataCallback;
-//
-//void preamble (void) {
-//    std::cout << "preamble\n";
-//}
-//
-//template <class F, class ... Args>
-//std::thread* ThreadWrapper (F f, Args&& ... args)
-//{
-//    return new std::thread ([f, args...] () {
-//        preamble ();
-//        f (std::forward <Args...> (args...));
-//    });
-//};
-//
-
+// put the scanning into a separate class
+//   subclassing std::thread is discouraged...
 class WorkThread
 {
 public:

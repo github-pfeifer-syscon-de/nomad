@@ -74,7 +74,8 @@ WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
     propspec.propid = m_propid;
 
     Glib::ustring ret = " Name = " + m_name + "\n";
-    HRESULT hr = pWiaPropertyStorage->ReadMultiple(1, &propspec, &propvar);
+    auto c_nPropertyCount = 1;
+    HRESULT hr = pWiaPropertyStorage->ReadMultiple(c_nPropertyCount, &propspec, &propvar);
     if (SUCCEEDED(hr)) {
         // Display the property value, type, and so on.
         ret += Glib::ustring::sprintf("   PropID = %d VarType = %s\n"
@@ -83,7 +84,8 @@ WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
         ULONG flags;
         PROPVARIANT propAttribute;
         PropVariantInit(&propAttribute);
-        hr = pWiaPropertyStorage->GetPropertyAttributes(1, &propspec, &flags, &propAttribute);
+        auto c_nPropertyAttributeCount = 1;
+        hr = pWiaPropertyStorage->GetPropertyAttributes(c_nPropertyAttributeCount, &propspec, &flags, &propAttribute);
         if (SUCCEEDED(hr)) {
             ret += Glib::ustring::sprintf("   attribute flags %s ", getFlags(flags));
             // only these cases are useful for us
@@ -103,13 +105,18 @@ WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
                 //    std::cout << "unused variant type range " << propvarattr.vt << std::endl;
                 //}
             }
-            PropVariantClear(&propAttribute);
+            //
+            // Free the returned PROPVARIANTs
+            //
+            FreePropVariantArray(c_nPropertyAttributeCount, &propAttribute);
         }
         else {
             ret += Glib::ustring("   attribute error %d", hr);
         }
-        // required to free?
-        PropVariantClear(&propvar);
+        //
+        // Free the returned PROPVARIANTs
+        //
+        FreePropVariantArray(c_nPropertyCount, &propvar);
     }
     else {
         ret += Glib::ustring::sprintf("Error %d ReadMultiple ", hr);
