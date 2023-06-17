@@ -19,8 +19,6 @@
 #include <cmath>
 #include <iostream>
 #include <istream>
-#include <sstream>      // std::ostringstream
-#include <iomanip>
 
 #include "Preview.hpp"
 #include "SvgShape.hpp"
@@ -271,34 +269,6 @@ Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
     return true;
 }
 
-#ifdef __WIN32__
-std::string
-Preview::dump(const guint8 *data, gsize size)
-{
-    std::ostringstream out;
-    gsize offset = 0u;
-    while (offset < size) {
-        if (offset > 0u) {
-            out << std::endl;
-        }
-        out << std::hex << std::setw(4) << std::setfill('0') << offset << ":";
-        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
-            out << std::setw(2) << std::setfill('0') << (int)data[offset+i] << " ";
-        }
-        out << std::dec << std::setw(1) << " ";
-        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
-            if (data[offset+i] >= 32 && data[offset+i] < 127) {
-                out << data[offset+i];
-            }
-            else {
-                out << ".";
-            }
-        }
-        offset += 16u;
-    }
-    return out.str();
-}
-
 
 void
 Preview::scanProgress()
@@ -328,7 +298,7 @@ Preview::scanProgress()
                     m_RowLast = 0;
                 }
                 else {
-                    std::cout << dump(p, 64) << std::endl;
+                    //std::cout << dump(p, 64) << std::endl;
                     std::cout << "Bitmap wrong info header " << std::endl;
                 }
             }
@@ -415,4 +385,3 @@ Preview::scan()
 
 
 }
-#endif

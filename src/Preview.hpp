@@ -73,7 +73,6 @@ protected:
     void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf);
     void scanProgress();
-    std::string dump(const guint8 *data, gsize size);
 
 private:
     NomadWin* m_nomadWin;

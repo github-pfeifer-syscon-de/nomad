@@ -34,6 +34,9 @@ protected:
     Glib::ustring convertVarTypeToString(VARTYPE vt);
     Glib::ustring convertValueToString( const PROPVARIANT &propvar);
     Glib::ustring getFlags(ULONG flags);
+    static std::string dump(const guint8 *data, gsize size);
+    Glib::ustring decodeAttribute(IWiaPropertyStorage *pWiaPropertyStorage);
+
 private:
     Glib::ustring m_name;
     PROPID m_propid;

@@ -17,7 +17,8 @@
  */
 
 #include <iostream>
-
+#include <sstream>      // std::ostringstream
+#include <iomanip>
 
 #include "WiaProperty.hpp"
 #include "StringUtils.hpp"
@@ -64,6 +65,159 @@ WiaProperty::getFlags(ULONG flags)
     return ret;
 }
 
+// this macro is broken so use functions
+//#define WIA_PROP_LIST_VALUE(ppv,index) \ ((index > ((PROPVARIANT*) ppv)->cal.cElems - WIA_LIST_VALUES) || (index < -WIA_LIST_NOM))
+//?\ NULL
+//: \ (((PROPVARIANT*) ppv)->vt==VT_UI1) ? \ ((PROPVARIANT*) ppv)->caub.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_UI2) ? \ ((PROPVARIANT*) ppv)->caui.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_UI4) ? \ ((PROPVARIANT*) ppv)->caul.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_I2) ? \ ((PROPVARIANT*) ppv)->cai.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_I4) ? \ ((PROPVARIANT*) ppv)->cal.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_R4) ? \ ((PROPVARIANT*) ppv)->caflt.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_R8) ? \ ((PROPVARIANT*) ppv)->cadbl.pElems[WIA_LIST_VALUES + index]
+//: \ (((PROPVARIANT*) ppv)->vt==VT_BSTR) ? \ (LONG)(((PROPVARIANT*) ppv)->cabstr.pElems[WIA_LIST_VALUES + index])
+//: \ NULL
+
+static double
+prop_list_value_double(PROPVARIANT* ppv, uint32_t index)
+{
+    double ret = 0.0;
+    if (index < WIA_PROP_LIST_COUNT(ppv)) {
+        uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
+        switch (vtAttr) {
+            case VT_R4:
+                ret = (double)ppv->caflt.pElems[WIA_LIST_VALUES + index];
+                break;
+            case VT_R8:
+                ret = (double)ppv->cadbl.pElems[WIA_LIST_VALUES + index];
+                break;
+            default:
+                ret = vtAttr;
+                break;
+        }
+    }
+    return ret;
+}
+
+static int32_t
+prop_list_value_int(PROPVARIANT* ppv, uint32_t index)
+{
+    int32_t ret = 0;
+    if (index < WIA_PROP_LIST_COUNT(ppv)) {
+        uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
+        switch (vtAttr) {
+            case VT_I2:
+                ret = (int32_t)ppv->cai.pElems[WIA_LIST_VALUES + index];
+                break;
+            case VT_I4:
+                ret = (int32_t)ppv->cal.pElems[WIA_LIST_VALUES + index];
+                break;
+            default:
+                ret = (int32_t)vtAttr;
+                break;
+        }
+    }
+    return ret;
+}
+
+static uint32_t
+prop_list_value_uint(PROPVARIANT* ppv, uint32_t index)
+{
+    uint32_t ret = 0u;
+    if (index < WIA_PROP_LIST_COUNT(ppv)) {
+        uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
+        switch (vtAttr) {
+            case VT_UI1:
+                ret = (uint32_t)ppv->caub.pElems[WIA_LIST_VALUES + index];
+                break;
+            case VT_UI2:
+                ret = (uint32_t)ppv->caui.pElems[WIA_LIST_VALUES + index];
+                break;
+            case VT_UI4:
+                ret = (uint32_t)ppv->caul.pElems[WIA_LIST_VALUES + index];
+                break;
+            default:
+                ret = (uint32_t)vtAttr;
+                break;
+        }
+    }
+    return ret;
+}
+
+static Glib::ustring
+prop_list_value_str(PROPVARIANT* ppv, uint32_t index)
+{
+    Glib::ustring ret;
+    if (index < WIA_PROP_LIST_COUNT(ppv)) {
+        uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
+        switch (vtAttr) {
+            case VT_BSTR:
+                ret = StringUtils::utf8_encode(ppv->cabstr.pElems[WIA_LIST_VALUES + index]);
+                break;
+            default:
+                ret = Glib::ustring("%d", vtAttr);
+                break;
+        }
+    }
+    return ret;
+}
+
+Glib::ustring
+WiaProperty::decodeAttribute(IWiaPropertyStorage *pWiaPropertyStorage)
+{
+    PROPVARIANT propvar;
+    PropVariantInit(&propvar);
+    PROPSPEC propspec;
+    propspec.ulKind = PRSPEC_PROPID;
+    propspec.propid = m_propid;
+
+    PROPVARIANT propAttribute;
+    PropVariantInit(&propAttribute);
+    auto c_nPropertyAttributeCount = 1;
+    ULONG flags = 0;
+    HRESULT hr = pWiaPropertyStorage->GetPropertyAttributes(c_nPropertyAttributeCount, &propspec, &flags, &propAttribute);
+    Glib::ustring ret;
+    if (SUCCEEDED(hr)) {
+        ret += Glib::ustring::sprintf("   attribute %s flags %s ", convertVarTypeToString(propAttribute.vt & VT_TYPEMASK), getFlags(flags));
+        // only these cases are useful for us
+        if ((flags & WIA_PROP_LIST) || (flags & WIA_PROP_RANGE)) {
+            ret += Glib::ustring::sprintf("[%d]", WIA_PROP_LIST_COUNT(&propAttribute));
+            for (uint32_t i = 0; i < WIA_PROP_LIST_COUNT(&propAttribute); ++i) {
+                uint32_t vtAttr = propAttribute.vt & VT_TYPEMASK;
+                switch (vtAttr) {
+                    case VT_I2:
+                    case VT_I4:
+                        ret += Glib::ustring::sprintf(" %d,", prop_list_value_int(&propAttribute, i));
+                        break;
+                    case VT_UI1:
+                    case VT_UI2:
+                    case VT_UI4:
+                        ret += Glib::ustring::sprintf(" %u,", prop_list_value_uint(&propAttribute, i));
+                        break;
+                    case VT_BSTR:
+                        ret += Glib::ustring::sprintf(" %s,", prop_list_value_str(&propAttribute, i));
+                        break;
+                    case VT_R4:
+                    case VT_R8:
+                        ret += Glib::ustring::sprintf(" %lf,", prop_list_value_double(&propAttribute, i));
+                        break;
+                    default:
+                        ret += Glib::ustring::sprintf(" ?%u,", vtAttr);
+                        break;
+                }
+            }
+        }
+        //
+        // Free the returned PROPVARIANTs
+        //
+        FreePropVariantArray(c_nPropertyAttributeCount, &propAttribute);
+    }
+    else {
+        ret += Glib::ustring("   attribute error %d", hr);
+    }
+    return ret;
+}
+
 Glib::ustring
 WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
 {
@@ -79,40 +233,9 @@ WiaProperty::info(IWiaPropertyStorage *pWiaPropertyStorage)
     if (SUCCEEDED(hr)) {
         // Display the property value, type, and so on.
         ret += Glib::ustring::sprintf("   PropID = %d VarType = %s\n"
-            ,  m_propid,  convertVarTypeToString( propvar.vt));
+            ,  m_propid, convertVarTypeToString( propvar.vt));
         ret += Glib::ustring::sprintf("   Value = %s\n", convertValueToString(propvar));
-        ULONG flags;
-        PROPVARIANT propAttribute;
-        PropVariantInit(&propAttribute);
-        auto c_nPropertyAttributeCount = 1;
-        hr = pWiaPropertyStorage->GetPropertyAttributes(c_nPropertyAttributeCount, &propspec, &flags, &propAttribute);
-        if (SUCCEEDED(hr)) {
-            ret += Glib::ustring::sprintf("   attribute flags %s ", getFlags(flags));
-            // only these cases are useful for us
-            if (flags & WIA_PROP_LIST) {
-                //if (propvarattr.vt == 4099) {
-                //ret += "list " + convertValueToString(propvarattr);
-                //}
-                //else {
-                //    std::cout << "unused variant type list " << propvarattr.vt << std::endl;
-                //}
-            }
-            if (flags & WIA_PROP_RANGE) {
-                //if (propvarattr.vt == 4099) {
-                //ret += "range " + convertValueToString(propvarattr);
-                //}
-                //else {
-                //    std::cout << "unused variant type range " << propvarattr.vt << std::endl;
-                //}
-            }
-            //
-            // Free the returned PROPVARIANTs
-            //
-            FreePropVariantArray(c_nPropertyAttributeCount, &propAttribute);
-        }
-        else {
-            ret += Glib::ustring("   attribute error %d", hr);
-        }
+        ret += decodeAttribute(pWiaPropertyStorage);
         //
         // Free the returned PROPVARIANTs
         //
@@ -336,8 +459,6 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
         if (propvar.vt & VT_VECTOR) {
             switch (propvar.vt & VT_TYPEMASK) {
                 case VT_I4:
-                    LPSAFEARRAY *pparray;
-                    PROPVARIANT *pvarVal;
                     if (propvar.parray) {
                         ret = Glib::ustring::sprintf("Vector elements %d", propvar.parray->cbElements);
                     }
@@ -354,6 +475,8 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
             switch (propvar.vt & VT_TYPEMASK) {
                 case VT_I4:
                     // propvar.parray->pvData
+                    //LPSAFEARRAY *pparray;
+                    //PROPVARIANT *pvarVal;
                     if (propvar.parray) {
                         ret = Glib::ustring::sprintf("Array elements %d", propvar.parray->cbElements);
                     }
@@ -373,3 +496,31 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
     }
     return ret;
 }
+
+std::string
+WiaProperty::dump(const guint8 *data, gsize size)
+{
+    std::ostringstream out;
+    gsize offset = 0u;
+    while (offset < size) {
+        if (offset > 0u) {
+            out << std::endl;
+        }
+        out << std::hex << std::setw(4) << std::setfill('0') << offset << ":";
+        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
+            out << std::setw(2) << std::setfill('0') << (int)data[offset+i] << " ";
+        }
+        out << std::dec << std::setw(1) << " ";
+        for (gsize i = 0; i < std::min(size-offset, (gsize)16u); ++i)  {
+            if (data[offset+i] >= 32 && data[offset+i] < 127) {
+                out << data[offset+i];
+            }
+            else {
+                out << ".";
+            }
+        }
+        offset += 16u;
+    }
+    return out.str();
+}
+

@@ -36,8 +36,7 @@ WiaDataCallback::~WiaDataCallback()
     //
     // Free the item buffer
     //
-    if (m_pBuffer)
-    {
+    if (m_pBuffer) {
         LocalFree( m_pBuffer );
         m_pBuffer = NULL;
     }
@@ -51,24 +50,20 @@ WiaDataCallback::QueryInterface( REFIID riid, void **ppvObject )
     //
     // Validate arguments
     //
-    if (NULL == ppvObject)
-    {
+    if (NULL == ppvObject) {
         return E_INVALIDARG;
     }
 
     //
     // Return the appropriate interface
     //
-    if (IsEqualIID( riid, IID_IUnknown ))
-    {
+    if (IsEqualIID( riid, IID_IUnknown )) {
         *ppvObject = static_cast<WiaDataCallback *>(this);
     }
-    else if (IsEqualIID( riid, IID_IWiaDataCallback ))
-    {
+    else if (IsEqualIID( riid, IID_IWiaDataCallback )) {
         *ppvObject = static_cast<WiaDataCallback *>(this);
     }
-    else
-    {
+    else {
         *ppvObject = NULL;
         return(E_NOINTERFACE);
     }
@@ -90,8 +85,7 @@ ULONG CALLBACK
 WiaDataCallback::Release()
 {
     LONG cRef = InterlockedDecrement(&m_cRef);
-    if (0 == cRef)
-    {
+    if (0 == cRef) {
         delete this;
     }
     return cRef;
@@ -110,8 +104,7 @@ WiaDataCallback::BandedDataCallback(
     {
     UNREFERENCED_PARAMETER(lReserved);
     UNREFERENCED_PARAMETER(lResLength);
-    switch (lMessage)
-    {
+    switch (lMessage) {
     case IT_MSG_DATA_HEADER:
         {
             //
@@ -145,19 +138,17 @@ WiaDataCallback::BandedDataCallback(
             }
         }
         break;
-
     case IT_MSG_DATA:
         {
             //
             // Make sure a block of memory has been created.
             //
-            std::cout << "Got data at"
-                      << " buf 0x" << std::hex << (void*)m_pBuffer << std::dec
-                      << " offs " << lOffset
-                      << " len " << lLength
-                      << std::endl;
-            if (NULL != m_pBuffer)
-            {
+            //std::cout << "Got data at"
+            //          << " buf 0x" << std::hex << (void*)m_pBuffer << std::dec
+            //          << " offs " << lOffset
+            //          << " len " << lLength
+            //          << std::endl;
+            if (NULL != m_pBuffer) {
                 //
                 // Copy the new band.
                 //
