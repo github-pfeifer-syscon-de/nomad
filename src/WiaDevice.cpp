@@ -221,8 +221,8 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         // Prepare PROPSPECs and PROPVARIANTs for setting the
         // media type and format
         //
-        PROPSPEC PropSpec[2] = {0};
-        PROPVARIANT PropVariant[2] = {0};
+        PROPSPEC PropSpec[3] = {0};
+        PROPVARIANT PropVariant[3] = {0};
         const ULONG c_nPropCount = sizeof(PropVariant)/sizeof(PropVariant[0]);
 
         //
@@ -237,6 +237,8 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         PropSpec[0].propid = WIA_IPA_FORMAT;
         PropSpec[1].ulKind = PRSPEC_PROPID;
         PropSpec[1].propid = WIA_IPA_TYMED;
+        PropSpec[2].ulKind = PRSPEC_PROPID;
+        PropSpec[2].propid = 4104;  // byte per pixel
 
         //
         // Initialize the PROPVARIANTs
@@ -245,32 +247,30 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         PropVariant[0].puuid = &guidOutputFormat;
         PropVariant[1].vt = VT_I4;
         PropVariant[1].lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
+        PropVariant[2].vt = VT_I4;
+        PropVariant[2].lVal = 24;    // 8 = gray, 24 = color
 
         //
         // Set the properties
         //
         hr = pWiaPropertyStorage->WriteMultiple( c_nPropCount, PropSpec, PropVariant, WIA_IPA_FIRST );
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             //
             // Get the IWiaDataTransfer interface
             //
             IWiaDataTransfer *pWiaDataTransfer = NULL;
             hr = pWiaItem->QueryInterface( IID_IWiaDataTransfer, (void**)&pWiaDataTransfer );
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 //
                 // Create our callback class
                 //
-                if (pCallback)
-                {
+                if (pCallback) {
                     //
                     // Get the IWiaDataCallback interface from our callback class.
                     //
                     IWiaDataCallback *pWiaDataCallback = NULL;
                     hr = pCallback->QueryInterface( IID_IWiaDataCallback, (void**)&pWiaDataCallback );
-                    if (SUCCEEDED(hr))
-                    {
+                    if (SUCCEEDED(hr)) {
                         if (!trnsfFile) {
 //                            WIA_EXTENDED_TRANSFER_INFO  extendedTransferInfo;
 //                            hr = pWiaDataTransfer->idtGetExtendedTransferInfo(&extendedTransferInfo);

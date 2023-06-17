@@ -19,10 +19,7 @@
 #pragma once
 
 #include <gtkmm.h>
-#ifdef __WIN32__
 #include <thread>
-#include <functional>
-#endif
 #include "GenericCallback.hpp"
 
 class NomadWin;
@@ -87,6 +84,7 @@ private:
     Glib::Dispatcher m_dispatcher;
     bool m_initScan{false};
     int32_t m_RowLast{0};
+    double m_scale{1.0};
 };
 
 

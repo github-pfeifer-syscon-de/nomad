@@ -84,6 +84,7 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     color.set("#000");
     create(size, color);
 
+#ifdef __WIN32__
     // Keep some infos on foreground
     WiaScan winScan;
     auto devs = winScan.getDevices();
@@ -92,6 +93,7 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
         auto dev = devs[0];
         dev->getProperties();
     }
+#endif
 }
 
 void
@@ -123,7 +125,7 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
 {
     m_pixbuf = Gdk::Pixbuf::create(
             Gdk::Colorspace::COLORSPACE_RGB
-            , false
+            , true
             , 8
             , size[0]
             , size[1]);
@@ -134,6 +136,7 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
     m_pixbuf->fill(pixel);
     m_shapes.clear();
     m_selected.reset();
+    m_scaled.reset();
     queue_draw();
 }
 
@@ -253,9 +256,9 @@ Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
     if (m_pixbuf) {
         double wScale = static_cast<double>(get_width()) / static_cast<double>(m_pixbuf->get_width());
         double hScale = static_cast<double>(get_height()) / static_cast<double>(m_pixbuf->get_height());
-        double scale = std::min(wScale, hScale);
-        int scaledWidth = static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * scale);
-        int scaledHeight = static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * scale);
+        m_scale = std::min(wScale, hScale);
+        int scaledWidth = static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * m_scale);
+        int scaledHeight = static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * m_scale);
         if (!m_scaled
          || (std::abs(scaledWidth - m_scaled->get_width()) > 10
          &&  std::abs(scaledHeight - m_scaled->get_height()) > 10)) {   // scale with steps not every pixel
@@ -284,11 +287,6 @@ Preview::scanProgress()
         if (p && size >= sizeof(BITMAPINFOHEADER)) {
             auto bi = reinterpret_cast<BITMAPINFOHEADER*>(p);
             if (m_initScan) {
-                std::cout << "Got scan size "
-                          << bi->biWidth << " " << bi->biHeight
-                          << " bits " << bi->biBitCount
-                          << " compress " << std::hex << bi->biCompression << std::dec
-                          << std::endl;
                 if (bi->biWidth >= 0) {
                     std::array<int,2> size {std::abs(bi->biWidth),std::abs(bi->biHeight)};
                     Gdk::Color color;
@@ -296,6 +294,12 @@ Preview::scanProgress()
                     create(size, color);
                     m_initScan = false;
                     m_RowLast = 0;
+                    std::cout << "Got scan size "
+                          << bi->biWidth << " " << bi->biHeight
+                          << " bits " << bi->biBitCount
+                          << " compress " << std::hex << bi->biCompression << std::dec
+                          << " rowstride " << m_pixbuf->get_rowstride()
+                          << std::endl;
                 }
                 else {
                     //std::cout << dump(p, 64) << std::endl;
@@ -312,20 +316,19 @@ Preview::scanProgress()
                 bool bmpInverseHeight = bi->biHeight < 0;
                 int32_t width = std::abs(bi->biWidth);
                 uint8_t* bmpData = p + bi->biSize;
-                uint8_t* pixData = m_pixbuf->get_pixels();
+                uint32_t* pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels());
                 uint32_t bytePerPixel = bi->biBitCount / 8;
-                uint32_t wordRowStride = ((width * bi->biBitCount + 31) / 32);
-                uint32_t byteRowStride = wordRowStride * 4;
+                uint32_t byteRowStride = ((width * bi->biBitCount + 31) / 32) * 4;
                 int32_t uptoRow = std::min(static_cast<int32_t>((size - bi->biSize) / byteRowStride), height);
-                std::cout << "uptoRow " << uptoRow << " byte stride " << byteRowStride << std::endl;
+                std::cout << "uptoRow " << uptoRow  << " byte stride " << byteRowStride << std::endl;
                 for (int32_t y = m_RowLast; y < uptoRow; ++y) {
                     int32_t yd = y;
                     if (!bmpInverseHeight) {
                         yd = (height-1) - y;
                     }
+                    auto rows = bmpData + (y * byteRowStride);
+                    auto rowd = pixData + (yd * m_pixbuf->get_rowstride() / 4);
                     //std::cout << "row " << y << std::endl;
-                    uint8_t* rows = (uint8_t*)bmpData + y * byteRowStride;
-                    uint32_t* rowd = (uint32_t*)pixData + yd * wordRowStride;
                     for (int32_t x = 0; x < width; ++x) {
                         //  windows   BGR?
                         uint32_t rgb;
@@ -333,7 +336,8 @@ Preview::scanProgress()
                             rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
                         }
                         else {  // grayscale
-                            rgb = (rows[0] << 16u) | (rows[0] << 8u) | rows[0];
+                            auto gray = *rows;
+                            rgb = (gray << 16u) | (gray << 8u) | gray;
                         }
                         //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
                         *rowd = 0xff000000u | rgb;
@@ -341,7 +345,7 @@ Preview::scanProgress()
                         rows += bytePerPixel;
                     }
                 }
-                m_scaled.clear(); // need to refresh
+                m_scaled.reset(); // need to refresh
                 //queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
                 queue_draw();   // as the view is scaled no direct relationship...
                 m_RowLast = uptoRow;
