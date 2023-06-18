@@ -8,6 +8,7 @@ AM_CPPFLAGS = \
 	$(X11_CFLAGS) \
 	$(GLIBMM_CFLAGS) \
 	$(GTKMM_CFLAGS) \
+	$(GENERICIMG_CFLAGS) \
 	$(RSVG_CFLAGS)
 
 nomad_CFLAGS = -Wall
@@ -20,6 +21,7 @@ nomad_LDADD =  \
 	$(X11_LIBS) \
 	$(GLIBMM_LIBS) \
 	$(GTKMM_LIBS) \
+	$(GENERICIMG_LIBS) \
 	$(RSVG_LIBS)
 
 nomad_SOURCES = resources.c \
@@ -29,8 +31,6 @@ nomad_SOURCES = resources.c \
 	NomadApp.hpp \
 	NomadWin.cpp \
 	NomadWin.hpp \
-	StringUtils.hpp \
-	StringUtils.cpp \
 	NomadTreeView.cpp \
 	NomadTreeView.hpp \
 	Capture.hpp \
@@ -49,6 +49,10 @@ nomad_SOURCES = resources.c \
 	LocaleContext.cpp \
 	GenericCallback.hpp \
 	GenericCallback.cpp \
+	ScanDlg.hpp \
+	ScanDlg.cpp \
+	ScanPreview.hpp \
+	ScanPreview.cpp \
 	Preview.cpp \
 	Preview.hpp
 

@@ -19,31 +19,14 @@
 #pragma once
 
 #include <gtkmm.h>
-#include <thread>
-#include "GenericCallback.hpp"
+#include <list>
+#include <memory>
 
 class NomadWin;
 class Shape;
 class TextInfo;
 
 
-#ifdef __WIN32__
-class WiaDataCallback;
-// put the scanning into a separate class
-//   subclassing std::thread is discouraged...
-class WorkThread
-{
-public:
-    WorkThread(Glib::Dispatcher& dispatcher);
-    virtual ~WorkThread();
-    void run();
-    WiaDataCallback* getDataCallback();
-private:
-    Glib::Dispatcher& m_dispatcher;
-    WiaDataCallback* m_pCallback;
-
-};
-#endif
 class Preview
 : public Gtk::DrawingArea
 {
@@ -60,7 +43,6 @@ public:
     void addText(const TextInfo& text);
     void create(std::array<int,2> size, const Gdk::Color& background);
     void add(const std::shared_ptr<Shape>& shape);
-    void scan();
 
 protected:
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
@@ -69,7 +51,6 @@ protected:
     bool on_button_release_event(GdkEventButton* event) override;
     void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf);
-    void scanProgress();
 
 private:
     NomadWin* m_nomadWin;
@@ -79,11 +60,6 @@ private:
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
     double m_relX{0.0};
     double m_relY{0.0};
-    std::thread* m_workThread{nullptr};
-    WorkThread* m_worker{nullptr};
-    Glib::Dispatcher m_dispatcher;
-    bool m_initScan{false};
-    int32_t m_RowLast{0};
     double m_scale{1.0};
 };
 

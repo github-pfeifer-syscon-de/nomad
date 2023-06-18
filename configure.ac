@@ -33,13 +33,15 @@ PKG_CHECK_MODULES(X11, x11 > 1.6.4, [USE_X11="true"], [USE_WIN="true"])
 
 PKG_CHECK_MODULES([RSVG], [librsvg-2.0])
 
+PKG_CHECK_MODULES(GENERICIMG, [genericimg-0.1.0])
+
 AM_CONDITIONAL([HAVE_X11], [test x$USE_X11 = xtrue])
 AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])
 
 AX_CHECK_SED()
 
 if test "$host_os" = "mingw32" ; then
-     AC_SUBST(EXTRA_LDFLAGS, "")   dnl  -mwindows
+     AC_SUBST(EXTRA_LDFLAGS, "")   dnl disabled -mwindows while debugging
 fi
 
 

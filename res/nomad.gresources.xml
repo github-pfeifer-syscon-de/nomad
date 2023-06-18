@@ -7,6 +7,7 @@
     <file preprocess="xml-stripblanks">help-dlg.ui</file>
     <file preprocess="xml-stripblanks">text-dlg.ui</file>
     <file preprocess="xml-stripblanks">size-dlg.ui</file>
+    <file preprocess="xml-stripblanks">scan-dlg.ui</file>
     <file>nomad.png</file>
   </gresource>
 </gresources>

@@ -83,5 +83,5 @@ public:
             LONG lReserved,
             LONG lResLength,
             BYTE *pbData);
-    uint8_t* getDataTransfered(uint32_t *bytesTransfered, int32_t* percentTransfered) override;
+    uint8_t* getDataTransfered(uint32_t *bytesTransfered, int32_t* percentTransfered, uint32_t *transferAlloc) override;
 };

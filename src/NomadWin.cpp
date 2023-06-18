@@ -26,6 +26,7 @@
 #include "CairoShape.hpp"
 #ifdef __WIN32__
 #include "WinCapture.hpp"
+#include "ScanDlg.hpp"
 #else
 #include "X11Capture.hpp"
 #endif
@@ -66,6 +67,7 @@ NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& bu
 , m_application{application}
 , m_treeView{nullptr}
 , m_preview{nullptr}
+, m_buttons{nullptr}
 {
     set_title("Nomad");
     auto pix = Gdk::Pixbuf::create_from_resource(m_application->get_resource_base_path() + "/nomad.png");
@@ -252,12 +254,18 @@ NomadWin::activate_actions()
     auto scan_action = Gio::SimpleAction::create("scan");
     scan_action->signal_activate().connect(
         [this] (const Glib::VariantBase& value)  {
-            try {
-                m_preview->scan();
-            }
-            catch (const Glib::Error &ex) {
-                show_error(Glib::ustring::sprintf("Unable to scan %s", ex.what()));
-            }
+            auto builder = Gtk::Builder::create();
+               try {
+                   builder->add_from_resource(m_application->get_resource_base_path() + "/scan-dlg.ui");
+                   ScanDlg* dialog = nullptr;
+                   builder->get_widget_derived("scan-dlg", dialog, m_application);
+                   dialog->show_all();
+                   dialog->run();
+                   dialog->hide();
+               }
+               catch (const Glib::Error &ex) {
+                   std::cerr << "Unable to load scan-dialog: " << ex.what() << std::endl;
+               }
 		});
     add_action(scan_action);
     #endif

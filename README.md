@@ -1,2 +1,5 @@
 # nomad
-Simple capture utility (X11 only).
+Simple capture/scan utility.
+
+Requires genericImg see there for some basic build infos.
+

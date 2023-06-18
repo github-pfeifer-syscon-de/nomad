@@ -26,7 +26,7 @@ public:
     explicit GenericCallback(const GenericCallback& orig) = delete;
     virtual ~GenericCallback() = default;
 
-    virtual uint8_t* getDataTransfered(uint32_t *bytesTrasnfered, int32_t* percentTransfered) = 0;
+    virtual uint8_t* getDataTransfered(uint32_t *bytesTrasnfered, int32_t* percentTransfered, uint32_t* transfereAlloc) = 0;
 private:
 
 };

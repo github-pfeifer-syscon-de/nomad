@@ -28,7 +28,9 @@
  * get the application up and running
  *   about and help dialog
  */
-class NomadApp : public Gtk::Application {
+class NomadApp
+: public Gtk::Application
+{
 public:
     NomadApp(int arc, char **argv);
     explicit NomadApp(const NomadApp& nomadApp) = delete;

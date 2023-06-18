@@ -111,15 +111,13 @@ WiaDataCallback::BandedDataCallback(
             // The data header contains the image's final size.
             //
             auto pHeader = reinterpret_cast<PWIA_DATA_CALLBACK_HEADER>(pbData);
-            if (pHeader && pHeader->lBufferSize)
-            {
-                //std::cout << "header buffer " << pHeader->lBufferSize << std::endl;
+            if (pHeader && pHeader->lBufferSize) {
+                std::cout << "header buffer " << pHeader->lBufferSize << std::endl;
                 //
                 // Allocate a block of memory to hold the image
                 //
                 m_pBuffer = reinterpret_cast<PBYTE>(LocalAlloc(LPTR,pHeader->lBufferSize));
-                if (m_pBuffer)
-                {
+                if (m_pBuffer) {
                     //
                     // Save the buffer size.
                     //
@@ -169,16 +167,13 @@ WiaDataCallback::BandedDataCallback(
             //
             // Display transfer phase
             //
-            if (lStatus & IT_STATUS_TRANSFER_FROM_DEVICE)
-            {
+            if (lStatus & IT_STATUS_TRANSFER_FROM_DEVICE) {
                 //std::cout << "Transfer from device" << std::endl;
             }
-            else if (lStatus & IT_STATUS_PROCESSING_DATA)
-            {
+            else if (lStatus & IT_STATUS_PROCESSING_DATA) {
                 //std::cout << "Processing Data" << std::endl;
             }
-            else if (lStatus & IT_STATUS_TRANSFER_TO_CLIENT)
-            {
+            else if (lStatus & IT_STATUS_TRANSFER_TO_CLIENT) {
                 //std::cout << "Transfer to Client" << std::endl;
             }
 
@@ -196,9 +191,10 @@ WiaDataCallback::BandedDataCallback(
 }
 
 uint8_t*
-WiaDataCallback::getDataTransfered(uint32_t* bytesTransfered, int32_t* percentTransfered)
+WiaDataCallback::getDataTransfered(uint32_t* bytesTransfered, int32_t* percentTransfered, uint32_t* transferAlloc)
 {
     *bytesTransfered = m_nBytesTransfered;
     *percentTransfered = m_percentComplete;
+    *transferAlloc = m_nBufferLength;
     return m_pBuffer;
 }

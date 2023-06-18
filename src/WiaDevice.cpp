@@ -221,9 +221,8 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         // Prepare PROPSPECs and PROPVARIANTs for setting the
         // media type and format
         //
-        PROPSPEC PropSpec[3] = {0};
-        PROPVARIANT PropVariant[3] = {0};
-        const ULONG c_nPropCount = sizeof(PropVariant)/sizeof(PropVariant[0]);
+        std::vector<PROPSPEC> PropSpec;
+        std::vector<PROPVARIANT> PropVariant;
 
         //
         // Use BMP as the output format
@@ -231,29 +230,54 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_MEMORYBMP;    // seems to have not much influence
 
         //
-        // Initialize the PROPSPECs
+        // Initialize the PROPSPECs&PROPVARIANTs
         //
-        PropSpec[0].ulKind = PRSPEC_PROPID;
-        PropSpec[0].propid = WIA_IPA_FORMAT;
-        PropSpec[1].ulKind = PRSPEC_PROPID;
-        PropSpec[1].propid = WIA_IPA_TYMED;
-        PropSpec[2].ulKind = PRSPEC_PROPID;
-        PropSpec[2].propid = 4104;  // byte per pixel
+        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = WIA_IPA_FORMAT});
+        PROPVARIANT propVar;
+        PropVariantInit(&propVar);
+        propVar.vt = VT_CLSID;
+        propVar.puuid = &guidOutputFormat;
+        PropVariant.push_back(propVar);
 
-        //
-        // Initialize the PROPVARIANTs
-        //
-        PropVariant[0].vt = VT_CLSID;
-        PropVariant[0].puuid = &guidOutputFormat;
-        PropVariant[1].vt = VT_I4;
-        PropVariant[1].lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
-        PropVariant[2].vt = VT_I4;
-        PropVariant[2].lVal = 24;    // 8 = gray, 24 = color
+        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = WIA_IPA_TYMED});
+        PropVariantInit(&propVar);
+        propVar.vt = VT_I4;
+        propVar.lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
+        PropVariant.push_back(propVar);
 
+        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = 6147}); // horz dpi
+        PropVariantInit(&propVar);
+        propVar.vt = VT_I4;
+        propVar.lVal = 150;
+        PropVariant.push_back(propVar);
+
+        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = 6148}); // vert dpi
+        PropVariantInit(&propVar);
+        propVar.vt = VT_I4;
+        propVar.lVal = 150;
+        PropVariant.push_back(propVar);
+
+        PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 4104});  // byte per pixel
+        PropVariantInit(&propVar);
+        propVar.vt = VT_I4;
+        propVar.lVal = 8;    // 1 = b/w, 8 = gray, 24 = color
+        PropVariant.push_back(propVar);
+
+        //PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 6159});  // threshold
+        //PropVariantInit(&propVar);
+        //propVar.vt = VT_I4;
+        //propVar.lVal = 32;    // default 128  (try to set after written bits???)  no influence as seen in jacob version, leaves b/w almost useless
+        //PropVariant.push_back(propVar);
+
+        //PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 6146});  // itent
+        //PropVariantInit(&propVar);
+        //propVar.vt = VT_I4;
+        //propVar.lVal = 0;    // 1 = false color image, constants WIA_INTENT_BEST_PREVIEW, WIA_INTENT_IMAGE_TYPE_TEXT lead to error
+        //PropVariant.push_back(propVar);
         //
         // Set the properties
         //
-        hr = pWiaPropertyStorage->WriteMultiple( c_nPropCount, PropSpec, PropVariant, WIA_IPA_FIRST );
+        hr = pWiaPropertyStorage->WriteMultiple(static_cast<ULONG>(PropSpec.size()), &PropSpec[0], &PropVariant[0], WIA_IPA_FIRST );
         if (SUCCEEDED(hr)) {
             //
             // Get the IWiaDataTransfer interface
