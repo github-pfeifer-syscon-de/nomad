@@ -45,8 +45,6 @@ nomad_SOURCES = resources.c \
 	SvgShape.cpp \
 	ScaleableShape.hpp \
 	ScaleableShape.cpp \
-	LocaleContext.hpp \
-	LocaleContext.cpp \
 	GenericCallback.hpp \
 	GenericCallback.cpp \
 	ScanDlg.hpp \
