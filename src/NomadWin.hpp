@@ -27,6 +27,23 @@
 
 class NomadApp;
 
+/*
+ * slightly customized file chooser
+ */
+class NomadFileChooser
+: public Gtk::FileChooserDialog
+{
+public:
+    NomadFileChooser(
+            Gtk::Window& win,
+            bool save,
+            const Glib::ustring& type);
+    virtual ~NomadFileChooser() = default;
+protected:
+private:
+};
+
+
 class NomadWin
 : public Gtk::ApplicationWindow {
 public:

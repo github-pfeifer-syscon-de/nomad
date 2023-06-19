@@ -21,6 +21,25 @@
 #include <glibmm.h>
 #include <windows.h>
 #include <wia.h>
+#include <variant>
+
+// incomplete implementation of variant value holder
+class WiaValue
+: public std::variant<int32_t, int64_t, uint32_t, uint64_t, double, Glib::ustring, bool>
+{
+public:
+    WiaValue() = default;
+    WiaValue(const WiaValue& other) = default;
+    WiaValue& operator= (const WiaValue& other) = default;
+    ~WiaValue() = default;
+
+    void set(const PROPVARIANT& propvar);
+    bool get(PROPVARIANT& propvar);
+    VARTYPE getVt();
+    void set(int32_t val);
+private:
+    VARTYPE m_vt{0};
+};
 
 class WiaProperty
 {
@@ -30,11 +49,15 @@ public:
     virtual ~WiaProperty() = default;
 
     Glib::ustring info(IWiaPropertyStorage *pWiaPropertyStorage);
+    PROPID getPropertyId();
+    WiaValue getValue(IWiaPropertyStorage *pWiaPropertyStorage);
+    std::vector<WiaValue> getRange(IWiaPropertyStorage *pWiaPropertyStorage);
+
+    static Glib::ustring convertVarTypeToString(VARTYPE vt);
+    static std::string dump(const guint8 *data, gsize size);
 protected:
-    Glib::ustring convertVarTypeToString(VARTYPE vt);
     Glib::ustring convertValueToString( const PROPVARIANT &propvar);
     Glib::ustring getFlags(ULONG flags);
-    static std::string dump(const guint8 *data, gsize size);
     Glib::ustring decodeAttribute(IWiaPropertyStorage *pWiaPropertyStorage);
 
 private:

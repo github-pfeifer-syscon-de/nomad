@@ -100,48 +100,30 @@ WiaScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
     if (SUCCEEDED(hr)) {
         //
         // IWiaPropertyStorage::ReadMultiple will return S_FALSE if some
-        // properties could not be read, so you have to check the return
-        // types for each requested item.
-        //
+        // properties could not be read.
 
-        BSTR devId;
-        BSTR devName;
-        BSTR devDescr;
-        //
-        // Check the return type for the device ID
-        //
-        if (VT_BSTR == PropVar[0].vt) {
-            //
-            // Do something with the device ID
-            //
-            std::cout << "WIA_DIP_DEV_ID: " << StringUtils::utf8_encode(PropVar[0].bstrVal) << std::endl;
-
+        BSTR devId = nullptr;
+        BSTR devName = nullptr;
+        BSTR devDescr = nullptr;
+        if (VT_BSTR == PropVar[0].vt) {     // Check expected type
             devId = PropVar[0].bstrVal;
         }
-
-        //
-        // Check the return type for the device name
-        //
         if (VT_BSTR == PropVar[1].vt) {
-            //
-            // Do something with the device name
-            //
-            //std::cout << "WIA_DIP_DEV_NAME: " << StringUtils::utf8_encode(PropVar[1].bstrVal) << std::endl;
             devName= PropVar[1].bstrVal;
         }
-
-        //
-        // Check the return type for the device description
-        //
         if (VT_BSTR == PropVar[2].vt) {
-            //
-            // Do something with the device description
-            //
-            //std::cout << "WIA_DIP_DEV_DESC: " << StringUtils::utf8_encode(PropVar[2].bstrVal) << std::endl;
             devDescr = PropVar[2].bstrVal;
         }
-        auto dev = std::make_shared<WiaDevice>(this, devId, devName, devDescr);
-        m_devices.push_back(dev);
+        if (devId) {
+            //std::cout << "WiaScan::readSomeWiaProperties WIA_DIP_DEV_ID: " << StringUtils::utf8_encode(devId)
+            //          << " WIA_DIP_DEV_NAME: " << StringUtils::utf8_encode(devName)
+            //          << " WIA_DIP_DEV_DESC: " << StringUtils::utf8_encode(devDescr) << std::endl;
+            auto dev = std::make_shared<WiaDevice>(this, devId, devName, devDescr);
+            m_devices.push_back(dev);
+        }
+        else {
+            std::cout << "The device was unusable as the id uses the wrong type " << PropVar[0].vt << std::endl;
+        }
 
         //
         // Free the returned PROPVARIANTs

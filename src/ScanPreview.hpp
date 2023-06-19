@@ -22,7 +22,7 @@
 #include <thread>
 
 #include "GenericCallback.hpp"
-
+class WiaValue;
 class NomadWin;
 
 #ifdef __WIN32__
@@ -32,13 +32,20 @@ class WiaDataCallback;
 class WorkThread
 {
 public:
-    WorkThread(Glib::Dispatcher& dispatcher);
+    WorkThread(
+            Glib::Dispatcher& dispatcher
+            , const Glib::ustring& deviceId
+            , const std::map<uint32_t, WiaValue>& properties);
     virtual ~WorkThread();
     void run();
     WiaDataCallback* getDataCallback();
 private:
     Glib::Dispatcher& m_dispatcher;
     WiaDataCallback* m_pCallback;
+    bool m_completed{false};
+    bool m_result{false};
+    Glib::ustring m_deviceId;
+    std::map<uint32_t, WiaValue> m_properties;
 
 };
 #endif
@@ -49,13 +56,30 @@ class ScanPreview
 public:
     ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder);
     explicit ScanPreview(const ScanPreview& orig) = delete;
-    virtual ~ScanPreview() = default;
+    virtual ~ScanPreview();
 
-    void scan();
+    void scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>& properties);
+    bool saveImage(const Glib::ustring& file);
+    inline double getXStart() {
+        return m_xstart;
+    }
+    inline double getYStart() {
+        return m_ystart;
+    }
+    inline double getXEnd() {
+        return m_xend;
+    }
+    inline double getYEnd() {
+        return m_yend;
+    }
 protected:
     void scanProgress();
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx);
     void create(std::array<int,2> size, const Gdk::Color& background);
+    void cleanup();
+    double convertRel2X(double relx);
+    double convertRel2Y(double rely);
+    bool on_motion_notify_event(GdkEventMotion* motion_event) override;
 private:
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
@@ -65,5 +89,9 @@ private:
     bool m_initScan{false};
     int32_t m_RowLast{0};
     double m_scale{1.0};
+    double m_xstart{0.1};
+    double m_ystart{0.1};
+    double m_xend{0.9};
+    double m_yend{0.9};
 };
 

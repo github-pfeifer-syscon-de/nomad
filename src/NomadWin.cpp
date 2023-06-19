@@ -30,37 +30,31 @@
 #else
 #include "X11Capture.hpp"
 #endif
-/*
- * slightly customized file chooser
- */
-class NomadFileChooser : public Gtk::FileChooserDialog {
-public:
-    NomadFileChooser(Gtk::Window& win, bool save, const Glib::ustring& type)
-    : Gtk::FileChooserDialog(win
-                            , save
-                            ? Glib::ustring::sprintf("Save %s-file", type)
-                            : Glib::ustring::sprintf("Open %s-file", type)
-                            , save
-                            ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
-                            : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
-                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT)
-    {
-        add_button("_Cancel", Gtk::RESPONSE_CANCEL);
-        add_button(save
-                    ? "_Save"
-                    : "_Open", Gtk::RESPONSE_ACCEPT);
 
-        Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
-        filter->set_name("Type");
-        //filter->add_mime_type("text/plain");
-        filter->add_pattern(Glib::ustring::sprintf("*.%s", type));
-        set_filter(filter);
-    }
+NomadFileChooser::NomadFileChooser(
+        Gtk::Window& win,
+        bool save,
+        const Glib::ustring& type)
+: Gtk::FileChooserDialog(win
+                        , save
+                        ? Glib::ustring::sprintf("Save %s-file", type)
+                        : Glib::ustring::sprintf("Open %s-file", type)
+                        , save
+                        ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
+                        : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
+                        , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT)
+{
+    add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    add_button(save
+                ? "_Save"
+                : "_Open", Gtk::RESPONSE_ACCEPT);
 
-    virtual ~NomadFileChooser() = default;
-protected:
-private:
-};
+    Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
+    filter->set_name("Type");
+    //filter->add_mime_type("text/plain");
+    filter->add_pattern(Glib::ustring::sprintf("*.%s", type));
+    set_filter(filter);
+}
 
 NomadWin::NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadApp *application)
 : Gtk::ApplicationWindow(cobject)       //Calls the base class constructor
@@ -258,7 +252,7 @@ NomadWin::activate_actions()
                try {
                    builder->add_from_resource(m_application->get_resource_base_path() + "/scan-dlg.ui");
                    ScanDlg* dialog = nullptr;
-                   builder->get_widget_derived("scan-dlg", dialog, m_application);
+                   builder->get_widget_derived("scan-dlg", dialog, this);
                    dialog->show_all();
                    dialog->run();
                    dialog->hide();

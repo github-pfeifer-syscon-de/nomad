@@ -26,6 +26,7 @@
 WiaDevice::WiaDevice(WiaScan* winScan, const BSTR& devId, const BSTR& devName, const BSTR& devDescr)
 : m_winScan{winScan}
 , m_pWiaDevice{nullptr}
+, m_devId(StringUtils::utf8_encode(devId))
 , m_devName{StringUtils::utf8_encode(devName)}
 , m_devDescr{StringUtils::utf8_encode(devDescr)}
 {
@@ -49,25 +50,39 @@ WiaDevice::~WiaDevice()
     }
 }
 
+Glib::ustring
+WiaDevice::getDeviceId()
+{
+    return m_devId;
+}
+
+Glib::ustring
+WiaDevice::getDeviceName()
+{
+    return m_devName;
+}
+
+IWiaItem*
+WiaDevice::getWiaItem() {
+    return m_pWiaDevice;
+}
 
 bool
-WiaDevice::scan(WiaDataCallback *pCallback)
+WiaDevice::scan(WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
 {
     if (m_pWiaDevice) {
         IWiaItem *pChildWiaItem = nullptr;
         HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
         if (SUCCEEDED(hr)) {
             if (pChildWiaItem) {
-                hr = transferWiaItem(pChildWiaItem, false, pCallback);
+                hr = transferWiaItem(pChildWiaItem, false, pCallback, properties);
                 pChildWiaItem->Release();
                 pChildWiaItem = nullptr;
+                return SUCCEEDED(hr);
             }
             else {
                 std::cout << "Could not identify image item!" << std::endl;
-                return false;
             }
-
-            return SUCCEEDED(hr);
         }
         else {
             std::string message = std::system_category().message(hr);
@@ -138,27 +153,6 @@ WiaDevice::getProperties()
 void
 WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section)
 {
-#ifdef OBSOLET
-//        ULONG ulNumProps = 0;
-//        HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
-//        if (SUCCEEDED(hr)) {
-//            std::cout << "numProps " << ulNumProps << std::endl;
-//        }
-//        else {
-//            std::cout << "Error " << hr << " pWiaPropertyStorage->GetCount" << std::endl;
-//        }
-        getProperties(pWiaPropertyStorage, "image");
-//        HRESULT hr = pWiaPropertyStorage->ReadPropertyNames();
-//        if (SUCCEEDED(hr)) {
-//            std::cout << "numProps " << ulNumProps << std::endl;
-//        }
-//        else {
-//            std::cout << "Error " << hr << " pWiaPropertyStorage->ReadPropertyNames" << std::endl;
-//        }
-        , WiaDataCallback *pCallback
-#endif
-
-
     IEnumSTATPROPSTG* penum = nullptr;
     HRESULT hr = pWiaPropertyStorage->Enum(&penum);
     if (SUCCEEDED(hr)) {
@@ -176,8 +170,9 @@ WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::u
                 auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
                 m_properties.push_back(property);
                 if (!section.empty()) {
+                    Glib::ustring info = property->info(pWiaPropertyStorage);
                     std::cout << section << " ---------------------------------------" << std::endl
-                              << property->info(pWiaPropertyStorage) << std::endl;
+                              << info << std::endl;
                 }
             }
         }
@@ -202,7 +197,7 @@ WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::u
 }
 
 HRESULT
-WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback)
+WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
 {
     //
     // Validate arguments
@@ -245,35 +240,19 @@ WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback 
         propVar.lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
         PropVariant.push_back(propVar);
 
-        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = 6147}); // horz dpi
-        PropVariantInit(&propVar);
-        propVar.vt = VT_I4;
-        propVar.lVal = 150;
-        PropVariant.push_back(propVar);
-
-        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = 6148}); // vert dpi
-        PropVariantInit(&propVar);
-        propVar.vt = VT_I4;
-        propVar.lVal = 150;
-        PropVariant.push_back(propVar);
-
-        PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 4104});  // byte per pixel
-        PropVariantInit(&propVar);
-        propVar.vt = VT_I4;
-        propVar.lVal = 8;    // 1 = b/w, 8 = gray, 24 = color
-        PropVariant.push_back(propVar);
-
-        //PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 6159});  // threshold
-        //PropVariantInit(&propVar);
-        //propVar.vt = VT_I4;
-        //propVar.lVal = 32;    // default 128  (try to set after written bits???)  no influence as seen in jacob version, leaves b/w almost useless
-        //PropVariant.push_back(propVar);
-
-        //PropSpec.push_back( { .ulKind = PRSPEC_PROPID, .propid = 6146});  // itent
-        //PropVariantInit(&propVar);
-        //propVar.vt = VT_I4;
-        //propVar.lVal = 0;    // 1 = false color image, constants WIA_INTENT_BEST_PREVIEW, WIA_INTENT_IMAGE_TYPE_TEXT lead to error
-        //PropVariant.push_back(propVar);
+        for (auto entry : properties) {
+            auto value = entry.second;
+            PropSpec.push_back({
+                .ulKind = PRSPEC_PROPID,
+                .propid = entry.first});
+            PropVariantInit(&propVar);
+            if (value.get(propVar)) {
+                PropVariant.push_back(propVar);
+            }
+            else {
+                std::cout << "The variant " << entry.first << " value type " << value.getVt() << " was unsupported!" << std::endl;
+            }
+        }
         //
         // Set the properties
         //

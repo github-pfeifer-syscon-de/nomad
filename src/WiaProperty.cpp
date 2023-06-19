@@ -23,48 +23,6 @@
 #include "WiaProperty.hpp"
 #include "StringUtils.hpp"
 
-WiaProperty::WiaProperty(STATPROPSTG& nextWiaPropertyStorage)
-{
-    if( NULL != nextWiaPropertyStorage.lpwstrName ) {
-        m_name = StringUtils::utf8_encode(nextWiaPropertyStorage.lpwstrName);
-    }
-    m_propid = nextWiaPropertyStorage.propid;
-}
-
-Glib::ustring
-WiaProperty::getFlags(ULONG flags)
-{
-    Glib::ustring ret;
-    if (flags & WIA_PROP_CACHEABLE) {
-        ret += " cacheable";
-    }
-    if (flags & WIA_PROP_FLAG) {
-        ret += " flag";
-    }
-    if (flags & WIA_PROP_LIST) {
-        ret += " list";
-    }
-    if (flags & WIA_PROP_NONE) {
-        ret += " none";
-    }
-    if (flags & WIA_PROP_RANGE) {
-        ret += " range";
-    }
-    if (flags & WIA_PROP_READ) {
-        ret += " read";
-    }
-    if (flags & WIA_PROP_RW) {
-        ret += " read/write";
-    }
-    if (flags & WIA_PROP_SYNC_REQUIRED) {
-        ret += " syncrequired";
-    }
-    if (flags & WIA_PROP_WRITE) {
-        ret += " write";
-    }
-    return ret;
-}
-
 // this macro is broken so use functions
 //#define WIA_PROP_LIST_VALUE(ppv,index) \ ((index > ((PROPVARIANT*) ppv)->cal.cElems - WIA_LIST_VALUES) || (index < -WIA_LIST_NOM))
 //?\ NULL
@@ -107,13 +65,13 @@ prop_list_value_int(PROPVARIANT* ppv, uint32_t index)
         uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
         switch (vtAttr) {
             case VT_I2:
-                ret = (int32_t)ppv->cai.pElems[WIA_LIST_VALUES + index];
+                ret = static_cast<int32_t>(ppv->cai.pElems[WIA_LIST_VALUES + index]);
                 break;
             case VT_I4:
-                ret = (int32_t)ppv->cal.pElems[WIA_LIST_VALUES + index];
+                ret = static_cast<int32_t>(ppv->cal.pElems[WIA_LIST_VALUES + index]);
                 break;
             default:
-                ret = (int32_t)vtAttr;
+                //ret = vtAttr;
                 break;
         }
     }
@@ -128,16 +86,16 @@ prop_list_value_uint(PROPVARIANT* ppv, uint32_t index)
         uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
         switch (vtAttr) {
             case VT_UI1:
-                ret = (uint32_t)ppv->caub.pElems[WIA_LIST_VALUES + index];
+                ret = static_cast<uint32_t>(ppv->caub.pElems[WIA_LIST_VALUES + index]);
                 break;
             case VT_UI2:
-                ret = (uint32_t)ppv->caui.pElems[WIA_LIST_VALUES + index];
+                ret = static_cast<uint32_t>(ppv->caui.pElems[WIA_LIST_VALUES + index]);
                 break;
             case VT_UI4:
-                ret = (uint32_t)ppv->caul.pElems[WIA_LIST_VALUES + index];
+                ret = static_cast<uint32_t>(ppv->caul.pElems[WIA_LIST_VALUES + index]);
                 break;
             default:
-                ret = (uint32_t)vtAttr;
+                //ret = (uint32_t)vtAttr;
                 break;
         }
     }
@@ -155,9 +113,285 @@ prop_list_value_str(PROPVARIANT* ppv, uint32_t index)
                 ret = StringUtils::utf8_encode(ppv->cabstr.pElems[WIA_LIST_VALUES + index]);
                 break;
             default:
-                ret = Glib::ustring("%d", vtAttr);
+                //ret = Glib::ustring("%d", vtAttr);
                 break;
         }
+    }
+    return ret;
+}
+
+void
+WiaValue::set(const PROPVARIANT& propvar)
+{
+    switch (propvar.vt) {
+        case VT_I1:
+            emplace<int32_t>(static_cast<int32_t>(propvar.cVal));
+            break;
+        case VT_I2:
+            emplace<int32_t>(static_cast<int32_t>(propvar.iVal));
+            break;
+        case VT_I4:
+        case VT_INT:
+            emplace<int32_t>(propvar.lVal);
+            break;
+//        case VT_I8: {     ms specific?
+//            int64_t i64 = propvar.hVal;
+//            emplace<int64_t>(i64);
+//            }
+//            break;
+        case VT_UI1:
+            emplace<uint32_t>(static_cast<uint32_t>(propvar.bVal));
+            break;
+        case VT_UI2:
+            emplace<uint32_t>(static_cast<uint32_t>(propvar.uiVal));
+            break;
+        case VT_UI4:
+        case VT_UINT:
+            emplace<uint32_t>(propvar.ulVal);
+            break;
+//        case VT_UI8: {    ms specific?
+//            uint64_t ui64 = propvar.uhVal;
+//            emplace<uint64_t>(ui64);
+//            }
+//            break;
+        case VT_R4:
+             emplace<double>(static_cast<double>(propvar.fltVal));
+             break;
+         case VT_R8:
+             emplace<double>(propvar.dblVal);
+             break;
+         case VT_BSTR:
+             emplace<Glib::ustring>(StringUtils::utf8_encode(propvar.bstrVal));
+             break;
+         case VT_BOOL:
+             emplace<bool>(VARIANT_TRUE == propvar.boolVal ? true : false);
+             break;
+         case VT_LPSTR:
+             emplace<Glib::ustring>(Glib::ustring(propvar.pszVal));   // ???
+             break;
+         case VT_LPWSTR:
+             emplace<Glib::ustring>(StringUtils::utf8_encode(propvar.pwszVal));
+             break;
+         default:
+             break;
+    }
+    m_vt = propvar.vt;
+    //std::cout << "WiaValue::set vt " << m_vt << " " << WiaProperty::convertVarTypeToString(m_vt)
+    //          << " int32_t " << (std::holds_alternative<int32_t>(*this) ? "y" : "n")
+    //          << " uint32_t " << (std::holds_alternative<uint32_t>(*this) ? "y" : "n") << std::endl;
+}
+
+
+bool
+WiaValue::get(PROPVARIANT& propvar)
+{
+    bool set{false};
+    //std::cout << "WiaValue::get vt " << m_vt << " " << WiaProperty::convertVarTypeToString(m_vt)
+    //          << " int32_t " << (std::holds_alternative<int32_t>(*this) ? "y" : "n")
+    //          << " uint32_t " << (std::holds_alternative<uint32_t>(*this) ? "y" : "n") << std::endl;
+    switch (m_vt) {
+            case VT_I1:
+            set = std::holds_alternative<int32_t>(*this);
+            if (set) {
+                propvar.cVal = static_cast<int8_t>(std::get<int32_t>(*this));
+            }
+            break;
+        case VT_I2:
+            set = std::holds_alternative<int32_t>(*this);
+            if (set) {
+                propvar.iVal = static_cast<int16_t>(std::get<int32_t>(*this));
+            }
+            break;
+        case VT_I4:
+        case VT_INT:
+            set = std::holds_alternative<int32_t>(*this);
+            if (set) {
+                propvar.lVal = std::get<int32_t>(*this);
+            }
+            break;
+        case VT_UI1:
+            set = std::holds_alternative<uint32_t>(*this);
+            if (set) {
+                propvar.bVal = static_cast<uint8_t>(std::get<uint32_t>(*this));
+            }
+            break;
+        case VT_UI2:
+            set = std::holds_alternative<uint32_t>(*this);
+            if (set) {
+                propvar.uiVal = static_cast<uint16_t>(std::get<uint32_t>(*this));
+            }
+            break;
+        case VT_UI4:
+        case VT_UINT:
+            set = std::holds_alternative<uint32_t>(*this);
+            if (set) {
+                propvar.ulVal = std::get<uint32_t>(*this);
+            }
+            break;
+    }
+    if (set) {
+        propvar.vt = m_vt;
+    }
+    return set;
+    // at the moment other types are unused ...
+    return false;
+}
+
+VARTYPE
+WiaValue::getVt()
+{
+    return m_vt;
+}
+
+void
+WiaValue::set(int32_t val)
+{
+    m_vt = VT_I4;
+    emplace<int32_t>(val);
+}
+
+WiaProperty::WiaProperty(STATPROPSTG& nextWiaPropertyStorage)
+{
+    if( NULL != nextWiaPropertyStorage.lpwstrName ) {
+        m_name = StringUtils::utf8_encode(nextWiaPropertyStorage.lpwstrName);
+    }
+    m_propid = nextWiaPropertyStorage.propid;
+}
+
+PROPID
+WiaProperty::getPropertyId()
+{
+    return m_propid;
+}
+
+// get list/range depending on flags
+std::vector<WiaValue>
+WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
+{
+    PROPSPEC propspec;
+    propspec.ulKind = PRSPEC_PROPID;
+    propspec.propid = m_propid;
+
+    PROPVARIANT propAttribute;
+    PropVariantInit(&propAttribute);
+    auto c_nPropertyAttributeCount = 1;
+    ULONG flags = 0;
+    HRESULT hr = pWiaPropertyStorage->GetPropertyAttributes(c_nPropertyAttributeCount, &propspec, &flags, &propAttribute);
+    std::vector<WiaValue> ret;
+    if (SUCCEEDED(hr)) {
+        //ret += Glib::ustring::sprintf("   attribute %s flags %s ", convertVarTypeToString(propAttribute.vt & VT_TYPEMASK), getFlags(flags));
+        // only these cases are useful for us
+        if ((flags & WIA_PROP_LIST) || (flags & WIA_PROP_RANGE)) {
+            //ret += Glib::ustring::sprintf("[%d]", WIA_PROP_LIST_COUNT(&propAttribute));
+            for (uint32_t i = 0; i < WIA_PROP_LIST_COUNT(&propAttribute); ++i) {
+                uint32_t vtAttr = propAttribute.vt & VT_TYPEMASK;
+                switch (vtAttr) {
+                    case VT_I2:
+                    case VT_I4:
+                        {
+                            int32_t ival = prop_list_value_int(&propAttribute, i);
+                            WiaValue val;
+                            val.emplace<int32_t>(ival);
+                            ret.push_back(val);
+                        }
+                        break;
+                    case VT_UI1:
+                    case VT_UI2:
+                    case VT_UI4:
+                        {
+                            uint32_t uval = prop_list_value_uint(&propAttribute, i);
+                            WiaValue val;
+                            val.emplace<uint32_t>(uval);
+                            ret.push_back(val);
+                        }
+                        break;
+                    case VT_BSTR:
+                        {
+                        auto ustr = prop_list_value_str(&propAttribute, i);
+                        WiaValue val;
+                        val.emplace<Glib::ustring>(ustr);
+                        ret.push_back(val);
+                        }
+                        break;
+                    case VT_R4:
+                    case VT_R8:
+                        {
+                        auto dval = prop_list_value_double(&propAttribute, i);
+                        WiaValue val;
+                        val.emplace<double>(dval);
+                        ret.push_back(val);
+                        }
+                        break;
+//                    default:
+//                        ret += Glib::ustring::sprintf(" ?%u,", vtAttr);
+//                        break;
+                }
+            }
+        }
+        //
+        // Free the returned PROPVARIANTs
+        //
+        FreePropVariantArray(c_nPropertyAttributeCount, &propAttribute);
+    }
+    return ret;
+}
+
+
+// this will also return unsigned values (which may fail if the sign bit will be used)
+WiaValue
+WiaProperty::getValue(IWiaPropertyStorage *pWiaPropertyStorage)
+{
+    PROPVARIANT propvar;
+    PropVariantInit(&propvar);
+    PROPSPEC propspec;
+    propspec.ulKind = PRSPEC_PROPID;
+    propspec.propid = m_propid;
+    WiaValue value;
+
+    auto c_nPropertyCount = 1;
+    HRESULT hr = pWiaPropertyStorage->ReadMultiple(c_nPropertyCount, &propspec, &propvar);
+    if (SUCCEEDED(hr)) {
+        value.set(propvar);
+        // Free the returned PROPVARIANTs
+        //
+        FreePropVariantArray(c_nPropertyCount, &propvar);
+    }
+    else {
+        std::cout << "Error " << hr << " getValue ReadMultiple " << std::endl;
+    }
+    return value;
+}
+
+Glib::ustring
+WiaProperty::getFlags(ULONG flags)
+{
+    Glib::ustring ret;
+    if (flags & WIA_PROP_CACHEABLE) {
+        ret += " cacheable";
+    }
+    if (flags & WIA_PROP_FLAG) {
+        ret += " flag";
+    }
+    if (flags & WIA_PROP_LIST) {
+        ret += " list";
+    }
+    if (flags & WIA_PROP_NONE) {
+        ret += " none";
+    }
+    if (flags & WIA_PROP_RANGE) {
+        ret += " range";
+    }
+    if (flags & WIA_PROP_READ) {
+        ret += " read";
+    }
+    if (flags & WIA_PROP_RW) {
+        ret += " read/write";
+    }
+    if (flags & WIA_PROP_SYNC_REQUIRED) {
+        ret += " syncrequired";
+    }
+    if (flags & WIA_PROP_WRITE) {
+        ret += " write";
     }
     return ret;
 }
@@ -165,8 +399,6 @@ prop_list_value_str(PROPVARIANT* ppv, uint32_t index)
 Glib::ustring
 WiaProperty::decodeAttribute(IWiaPropertyStorage *pWiaPropertyStorage)
 {
-    PROPVARIANT propvar;
-    PropVariantInit(&propvar);
     PROPSPEC propspec;
     propspec.ulKind = PRSPEC_PROPID;
     propspec.propid = m_propid;
@@ -400,9 +632,9 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
     case VT_INT:
         ret = Glib::ustring::sprintf( "%d", propvar.lVal );
         break;
-    case VT_I8:
-        ret = Glib::ustring::sprintf( "%ld", propvar.hVal );
-        break;
+//    case VT_I8:       // ms specific? dont crash sprintf!
+//        ret = Glib::ustring::sprintf( "%ld", propvar.hVal );
+//        break;
     case VT_UI2:
         ret = Glib::ustring::sprintf( "%04u", (uint32_t)propvar.uiVal );
         break;
@@ -410,9 +642,9 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
     case VT_UINT:
         ret = Glib::ustring::sprintf( "%u", propvar.ulVal );
         break;
-    case VT_UI8:
-        ret = Glib::ustring::sprintf( "%lu", propvar.uhVal );
-        break;
+//    case VT_UI8:      // ms specific? dont crash sprintf!
+//        ret = Glib::ustring::sprintf( "%lu", propvar.uhVal );
+//        break;
     case VT_R4:
         ret = Glib::ustring::sprintf( "%f", propvar.fltVal );
         break;
@@ -456,42 +688,7 @@ WiaProperty::convertValueToString( const PROPVARIANT &propvar)
         ret = StringUtils::utf8_encode(pwszValue);
         break;
     default:
-        if (propvar.vt & VT_VECTOR) {
-            switch (propvar.vt & VT_TYPEMASK) {
-                case VT_I4:
-                    if (propvar.parray) {
-                        ret = Glib::ustring::sprintf("Vector elements %d", propvar.parray->cbElements);
-                    }
-                    else {
-                        ret = Glib::ustring::sprintf("Vector ?");
-                    }
-                    break;
-                default:
-                    ret = Glib::ustring::sprintf("Vector unhandled vt 0x%0x", propvar.vt );
-                    break;
-            }
-        }
-        else if (propvar.vt & VT_ARRAY) {
-            switch (propvar.vt & VT_TYPEMASK) {
-                case VT_I4:
-                    // propvar.parray->pvData
-                    //LPSAFEARRAY *pparray;
-                    //PROPVARIANT *pvarVal;
-                    if (propvar.parray) {
-                        ret = Glib::ustring::sprintf("Array elements %d", propvar.parray->cbElements);
-                    }
-                    else {
-                        ret = Glib::ustring::sprintf("Array ?");
-                    }
-                    break;
-                default:
-                    ret = Glib::ustring::sprintf("Array unhandled vt 0x%0x", propvar.vt );
-                    break;
-            }
-        }
-        else {
-            ret = Glib::ustring::sprintf("Composite unhandled vt 0x%0x", propvar.vt );
-        }
+        ret = "?";
         break;
     }
     return ret;
