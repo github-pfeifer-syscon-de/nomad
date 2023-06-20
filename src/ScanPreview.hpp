@@ -72,6 +72,7 @@ public:
     inline double getYEnd() {
         return m_yend;
     }
+    void setShowMask(bool showMask);
 protected:
     void scanProgress();
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx);
@@ -80,6 +81,7 @@ protected:
     double convertRel2X(double relx);
     double convertRel2Y(double rely);
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
+    bool on_button_release_event(GdkEventButton* event);
 private:
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
@@ -93,5 +95,7 @@ private:
     double m_ystart{0.1};
     double m_xend{0.9};
     double m_yend{0.9};
+    bool m_showMask{true};
+    bool m_changedCursor{false};
 };
 

@@ -19,6 +19,8 @@
 #include <iostream>
 #include <gdkmm-3.0/gdkmm/pixbuf.h>
 #include <gdkmm-3.0/gdkmm/rectangle.h>
+#include <gdkmm-3.0/gdkmm/cursor.h>
+#include <gdkmm-3.0/gdkmm/window.h>
 
 
 #include "ScanPreview.hpp"
@@ -88,7 +90,7 @@ ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builde
 {
     m_dispatcher.connect(sigc::mem_fun(*this, &ScanPreview::scanProgress));
     add_events(Gdk::EventMask::BUTTON_PRESS_MASK
-        /*| Gdk::EventMask::BUTTON_RELEASE_MASK */
+        | Gdk::EventMask::BUTTON_RELEASE_MASK
         | Gdk::EventMask::BUTTON_MOTION_MASK);
 }
 
@@ -98,11 +100,24 @@ ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builde
  }
 
 bool
+ScanPreview::on_button_release_event(GdkEventButton* event)
+{
+    auto gdkWindow = get_window();
+    if (m_changedCursor) {
+        gdkWindow->set_cursor();
+        m_changedCursor = false;
+    }
+    return FALSE;
+}
+
+
+bool
 ScanPreview::on_motion_notify_event(GdkEventMotion* motion_event)
 {
     bool btn1 = (motion_event->state  & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
     if (btn1 && m_scaled) {
         const auto sensitifity = 12;
+        const auto sensitifity_2 = sensitifity / 2;
         double mouseX = motion_event->x;
         double mouseY = motion_event->y;
         double x1 = convertRel2X(m_xstart);
@@ -112,38 +127,58 @@ ScanPreview::on_motion_notify_event(GdkEventMotion* motion_event)
         double displayedWidth = m_scaled->get_width();
         double displayedHeight = m_scaled->get_height();
         bool redraw = false;
-        if (mouseY >= y1 && mouseY <= y2) {
+        Gdk::CursorType cursorType = Gdk::CursorType::ARROW;
+        if (mouseY >= (y1-sensitifity_2) && mouseY <= (y2+sensitifity_2)) {
             if (std::abs(mouseX - x1) < sensitifity) {
                 // left
                 m_xstart = mouseX / displayedWidth; // std::min(, x2 - 4.0);
                 redraw = true;
+                cursorType = Gdk::CursorType::LEFT_SIDE;
             }
             if (std::abs(mouseX - x2) < sensitifity && mouseY >= y1 && mouseY <= y2) {
                 // right
                 m_xend = mouseX / displayedWidth; //std::max(, 4.0);
                 redraw = true;
+                cursorType = Gdk::CursorType::RIGHT_SIDE;
             }
         }
-        if (mouseX >= x1 && mouseX <= x2) {
+        if (mouseX >= (x1-sensitifity_2) && mouseX <= (x2+sensitifity_2)) {
             if (std::abs(mouseY - y1) < sensitifity) {
                 // top
                 m_ystart = mouseY / displayedHeight; // std::min(, y2 - 4.0);
                 redraw = true;
+                cursorType = Gdk::CursorType::TOP_SIDE;
             }
             if (std::abs(mouseY - y2) < sensitifity) {
                 // bottom
                 m_yend = mouseY / displayedHeight; //std::max(, 4.0);
                 redraw = true;
+                cursorType = Gdk::CursorType::BOTTOM_SIDE;
             }
         }
+        auto gdkWindow = get_window();
         if (redraw) {
+            if (cursorType != Gdk::CursorType::ARROW) {
+                Glib::RefPtr<Gdk::Cursor> display_cursor = Gdk::Cursor::create(gdkWindow->get_display(), cursorType);
+                gdkWindow->set_cursor(display_cursor);
+                m_changedCursor = true;
+            }
             queue_draw();
+        }
+        else {
+            gdkWindow->set_cursor();
+             m_changedCursor = false;
         }
         return TRUE;
     }
     return FALSE;
 }
 
+void
+ScanPreview::setShowMask(bool showMask)
+{
+    m_showMask = showMask;
+}
 
 double
 ScanPreview::convertRel2X(double relx)
@@ -189,16 +224,18 @@ ScanPreview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
         Gdk::Cairo::set_source_pixbuf(cairoCtx, m_scaled, 0, 0);
         cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
         cairoCtx->fill();
-        // draw mask
-        cairoCtx->set_fill_rule(Cairo::FillRule::FILL_RULE_EVEN_ODD);
-        cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
-        double x = convertRel2X(m_xstart);
-        double y = convertRel2Y(m_ystart);
-        double width = convertRel2X(m_xend - m_xstart);
-        double height = convertRel2Y(m_yend - m_ystart);
-        cairoCtx->rectangle(x, y, width, height);
-        cairoCtx->set_source_rgba(0.5, 0.5, 0.5, 0.5);
-        cairoCtx->fill();
+        if (m_showMask) {
+            // draw mask
+            cairoCtx->set_fill_rule(Cairo::FillRule::FILL_RULE_EVEN_ODD);
+            cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
+            double x = convertRel2X(m_xstart);
+            double y = convertRel2Y(m_ystart);
+            double width = convertRel2X(m_xend - m_xstart);
+            double height = convertRel2Y(m_yend - m_ystart);
+            cairoCtx->rectangle(x, y, width, height);
+            cairoCtx->set_source_rgba(0.5, 0.5, 0.5, 0.5);
+            cairoCtx->fill();
+        }
     }
     return true;
 }
@@ -285,13 +322,15 @@ ScanPreview::scanProgress()
                         if (bytePerPixel >= 3) {       // discard alpha in case it is there...
                             rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
                         }
-                        else if (bytePerPixel == 1)  {  // grayscale
-                            auto gray = *rows;
-                            rgb = (gray << 16u) | (gray << 8u) | gray;
-                        }
-                        else {  // b&w
-                            auto bit = rows[x >> 3u] & (0x80u >> (x & 0x7u));
-                            uint8_t gray = bit != 0 ? 0xffu : 0u;
+                        else {
+                            uint8_t gray;
+                            if (bytePerPixel == 1)  {   // grayscale
+                                gray = *rows;
+                            }
+                            else {                      // b&w
+                                auto bit = rows[x >> 3u] & (0x80u >> (x & 0x7u));
+                                gray = bit != 0 ? 0xffu : 0u;
+                            }
                             rgb = (gray << 16u) | (gray << 8u) | gray;
                         }
                         //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0

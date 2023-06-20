@@ -41,6 +41,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
                 auto properties = getProperties(false);
                 auto devId = getDeviceId();
                 if (!devId.empty()) {
+                    m_scanPreview->setShowMask(true);
                     m_scanPreview->scan(devId, properties);
                 }
             }
@@ -59,6 +60,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
                 auto properties = getProperties(true);
                 auto devId = getDeviceId();
                 if (!devId.empty()) {
+                    m_scanPreview->setShowMask(false);
                     m_scanPreview->scan(devId, properties);
                 }
             }
@@ -91,8 +93,8 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     builder->get_widget_derived("previewImages", m_scanPreview);
     builder->get_widget("device", m_device);
     // Keep some infos on foreground
-    WiaScan winScan;
-    auto devs = winScan.getDevices();
+    m_wiaScan = std::make_shared<WiaScan>();
+    auto devs = m_wiaScan->getDevices();
     std::cout << "Devs " << devs.size() << std::endl;
     bool first{true};
     std::shared_ptr<WiaDevice> activeDev;
@@ -120,26 +122,14 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     if (SUCCEEDED(hr)) {
         IWiaPropertyStorage *pWiaPropertyStorage = NULL;
         hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
-        if (SUCCEEDED(hr)) {
-            setupScale(activeDev, pWiaPropertyStorage, property_brightness, m_brightness);
-            setupScale(activeDev, pWiaPropertyStorage, property_contrast, m_contrast);
-            setupScale(activeDev, pWiaPropertyStorage, property_threshold, m_threshold);
-            setupSpinner(activeDev, pWiaPropertyStorage, property_resolution_x, m_resolution);
+        if (SUCCEEDED(hr) && activeDev) {
+            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_brightness, m_brightness);
+            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_contrast, m_contrast);
+            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_threshold, m_threshold);
+            setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::property_resolution_x, m_resolution);
             // also read extends
-            for (auto property : activeDev->getProperties()) {
-                if (property->getPropertyId() == property_start_x) {
-                    m_startX = property->getRange(pWiaPropertyStorage);
-                }
-                if (property->getPropertyId() == property_start_y) {
-                    m_startY = property->getRange(pWiaPropertyStorage);
-                }
-                if (property->getPropertyId() == property_extend_x) {
-                    m_extendX = property->getRange(pWiaPropertyStorage);
-                }
-                if (property->getPropertyId() == property_extend_y) {
-                    m_extendY = property->getRange(pWiaPropertyStorage);
-                }
-            }
+            activeDev->readExtends(pWiaPropertyStorage);
+
         }
         else {
             std::cout << "ScanDlg::ScanDlg image item not convertible PropertyStorage!" << std::endl;
@@ -230,76 +220,43 @@ ScanDlg::setupScale(
 }
 
 
+std::shared_ptr<WiaDevice>
+ScanDlg::getActiveDevice()
+{
+    auto devId = getDeviceId();
+    if (!devId.empty()) {
+        auto devs = m_wiaScan->getDevices();
+        for (auto dev : devs) {
+            if (devId == dev->getDeviceId()) {
+                return dev;
+            }
+        }
+    }
+    return nullptr;
+}
+
 std::map<uint32_t, WiaValue>
 ScanDlg::getProperties(bool full)
 {
-    int colors = 8;
-    if (m_radioColor->get_active()) {
-        colors = 24;
-    }
-    WiaValue bits;
-    bits.set(colors);
-    WiaValue brightness;
-    auto bright = static_cast<int32_t>(m_brightness->get_value());
-    brightness.set(bright);
-    WiaValue contrast;
-    auto contr = static_cast<int32_t>(m_contrast->get_value());
-    contrast.set(contr);
-    WiaValue threshold;
-    auto tresh = static_cast<int32_t>(m_threshold->get_value());
-    threshold.set(tresh);
+    std::shared_ptr<WiaDevice> activeDevice = getActiveDevice();
+    if (activeDevice) {
+        auto bright = static_cast<int32_t>(m_brightness->get_value());
+        auto contr = static_cast<int32_t>(m_contrast->get_value());
+        auto tresh = static_cast<int32_t>(m_threshold->get_value());
+        auto res = m_resolution->get_value_as_int();
+        bool color = m_radioColor->get_active();
 
-    auto dpi = full ? m_resolution->get_value_as_int() : 50;
-    WiaValue horz;
-    horz.set(dpi);
-    WiaValue vert;
-    vert.set(dpi);
-    auto map = std::map<uint32_t, WiaValue>();
-    map.insert(std::make_pair(property_resolution_x, horz));
-    map.insert(std::make_pair(property_resolution_y, vert));
-    map.insert(std::make_pair(property_bits, bits));
-    map.insert(std::make_pair(property_brightness, brightness));
-    map.insert(std::make_pair(property_contrast, contrast));
-    map.insert(std::make_pair(property_threshold, threshold));
-    if (full) {
-        int xMaxExtend = 2000.0;
-        if (m_extendX.size() >= 2) {
-            xMaxExtend = std::get<int32_t>(m_extendX[0]);
-        }
-        int yMaxExtend = 3000.0;
-        if (m_extendY.size() >= 2) {
-            yMaxExtend = std::get<int32_t>(m_extendY[0]);
-        }
-        //std::cout << "xMax " << xMaxExtend
-        //          << " yMax "  << yMaxExtend << std::endl;
-        //std::cout << "Start " << m_scanPreview->getXStart()
-        //          << " " << m_scanPreview->getYStart()
-        //          << " end " << m_scanPreview->getXEnd()
-        //          << " " << m_scanPreview->getYEnd() << std::endl;
-        int x1 = static_cast<int32_t>(m_scanPreview->getXStart() * xMaxExtend);
-        if (m_startX.size() >= 2) {
-            WiaValue xStart;
-            xStart.set(std::min(x1, std::get<int32_t>(m_startX[0])));
-            map.insert(std::make_pair(property_start_x, xStart));
-        }
-        int y1 = static_cast<int32_t>(m_scanPreview->getYStart() * yMaxExtend);
-        if (m_startY.size() >= 2) {
-            WiaValue yStart;
-            yStart.set(std::min(y1, std::get<int32_t>(m_startY[0])));
-            map.insert(std::make_pair(property_start_y, yStart));
-        }
-        WiaValue xExtend;
-        int width = static_cast<int32_t>((m_scanPreview->getXEnd() - m_scanPreview->getXStart()) * xMaxExtend);
-        xExtend.set(std::min(width, xMaxExtend));
-        map.insert(std::make_pair(property_extend_x, xExtend));
-        WiaValue yExtend;
-        int height = static_cast<int32_t>((m_scanPreview->getYEnd() - m_scanPreview->getYStart()) * yMaxExtend);
-        yExtend.set(std::min(height, yMaxExtend));
-        map.insert(std::make_pair(property_extend_y, yExtend));
-        //std::cout << "Start " << x1 << " " << y1
-        //          << " width " << width
-        //          << " height " << height << std::endl;
+        return activeDevice->buildScanProperties(
+                full
+                , bright
+                , contr
+                , tresh
+                , res
+                , color
+                , m_scanPreview->getXStart()
+                , m_scanPreview->getYStart()
+                , m_scanPreview->getXEnd()
+                , m_scanPreview->getYEnd());
     }
-
-    return map;
+    return std::map<uint32_t, WiaValue>();
 }

@@ -461,3 +461,108 @@ WiaDevice::findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaIt
     return hr;
 }
 
+std::map<uint32_t, WiaValue>
+WiaDevice::buildScanProperties(
+        bool full
+        , int32_t bright
+        , int32_t contr
+        , int32_t tresh
+        , int32_t res
+        , bool color
+        , double xRelStart
+        , double yRelStart
+        , double xRelEnd
+        , double yRelEnd)
+{
+    int colors = 8;
+    if (color) {
+        colors = 24;
+    }
+    WiaValue bits;
+    bits.set(colors);
+    WiaValue brightness;
+    brightness.set(bright);
+    WiaValue contrast;
+    contrast.set(contr);
+    WiaValue threshold;
+    threshold.set(tresh);
+
+    auto dpi = full ? res : 50;
+    WiaValue horz;
+    horz.set(dpi);
+    WiaValue vert;
+    vert.set(dpi);
+    auto map = std::map<uint32_t, WiaValue>();
+    map.insert(std::make_pair(property_resolution_x, horz));
+    map.insert(std::make_pair(property_resolution_y, vert));
+    map.insert(std::make_pair(property_bits, bits));
+    map.insert(std::make_pair(property_brightness, brightness));
+    map.insert(std::make_pair(property_contrast, contrast));
+    map.insert(std::make_pair(property_threshold, threshold));
+    if (full) {
+        int xMaxExtend = 2000.0;
+        if (m_extendX.size() >= 2) {
+            xMaxExtend = std::get<int32_t>(m_extendX[0]);
+        }
+        int yMaxExtend = 3000.0;
+        if (m_extendY.size() >= 2) {
+            yMaxExtend = std::get<int32_t>(m_extendY[0]);
+        }
+        //std::cout << "xMax " << xMaxExtend
+        //          << " yMax "  << yMaxExtend << std::endl;
+        //std::cout << "Start " << m_scanPreview->getXStart()
+        //          << " " << m_scanPreview->getYStart()
+        //          << " end " << m_scanPreview->getXEnd()
+        //          << " " << m_scanPreview->getYEnd() << std::endl;
+        int x1 = static_cast<int32_t>(xRelStart * xMaxExtend);
+        if (m_startX.size() >= 2) {
+            x1 = std::min(x1, std::get<int32_t>(m_startX[0]));
+            x1 = std::max(x1, std::get<int32_t>(m_startX[1]));
+        }
+        WiaValue xStart;
+        xStart.set(x1);
+        map.insert(std::make_pair(property_start_x, xStart));
+        int y1 = static_cast<int32_t>(yRelStart * yMaxExtend);
+        if (m_startY.size() >= 2) {
+            y1 = std::min(y1, std::get<int32_t>(m_startY[0]));
+            y1 = std::max(y1, std::get<int32_t>(m_startY[1]));
+        }
+        WiaValue yStart;
+        yStart.set(y1);
+        map.insert(std::make_pair(property_start_y, yStart));
+        WiaValue xExtend;
+        int width = static_cast<int32_t>((xRelEnd - xRelStart) * xMaxExtend + 0.99);
+        xExtend.set(std::min(width, xMaxExtend - x1 - 1));
+        map.insert(std::make_pair(property_extend_x, xExtend));
+        WiaValue yExtend;
+        int height = static_cast<int32_t>((yRelEnd - yRelStart) * yMaxExtend + 0.99);
+        yExtend.set(std::min(height, yMaxExtend - y1 - 1));
+        map.insert(std::make_pair(property_extend_y, yExtend));
+        //std::cout << "Start " << x1 << " " << y1
+        //          << " width " << width
+        //          << " height " << height << std::endl;
+    }
+
+    return map;
+}
+
+
+void
+WiaDevice::readExtends(IWiaPropertyStorage *pWiaPropertyStorage)
+{
+    for (auto property : getProperties()) {
+        if (property->getPropertyId() == property_start_x) {
+            m_startX = property->getRange(pWiaPropertyStorage);
+        }
+        if (property->getPropertyId() == property_start_y) {
+            m_startY = property->getRange(pWiaPropertyStorage);
+        }
+        if (property->getPropertyId() == property_extend_x) {
+            m_extendX = property->getRange(pWiaPropertyStorage);
+        }
+        if (property->getPropertyId() == property_extend_y) {
+            m_extendY = property->getRange(pWiaPropertyStorage);
+        }
+    }
+}
+
