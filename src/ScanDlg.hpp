@@ -47,7 +47,8 @@ protected:
         , IWiaPropertyStorage *pWiaPropertyStorage
         , uint32_t propertyId
         , Gtk::SpinButton* scale);
-
+protected:
+    void deviceChanged();
 private:
     NomadWin* m_nomadWin;
     ScanPreview* m_scanPreview;

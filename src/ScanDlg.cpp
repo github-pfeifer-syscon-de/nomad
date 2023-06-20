@@ -19,10 +19,37 @@
 #include <iostream>
 #include <exception>
 
+#include "config.h"
 #include "ScanDlg.hpp"
 #include "WiaScan.hpp"
 #include "WiaProperty.hpp"
 #include "NomadWin.hpp"
+#include "PdfExport.hpp"
+#include "PdfPage.hpp"
+#include "PdfFont.hpp"
+
+#ifdef USE_PDF
+static
+void testExportPdf()
+{
+    auto pdfExport = std::make_shared<PdfExport>();
+    auto helv = pdfExport->createFont("Helvetica");
+    auto page = std::make_shared<PdfPage>(pdfExport);
+    page->setFont(helv, 20);
+    page->drawText("PngDemo", 220, page->getHeight() - 70);
+    page->setFont(helv, 12);
+    page->drawPng("res/basn0g01.png", 100, page->getHeight() - 150);
+    page->drawText("1bit grayscale.\nbasn0g01.png", 100, page->getHeight() - 150);
+    page->drawPng("res/basn0g02.png", 200, page->getHeight() - 150);
+    page->drawText("2bit grayscale.\nbasn0g02.png", 200, page->getHeight() - 150);
+    page->drawPng("res/basn0g04.png", 300, page->getHeight() - 150);
+    page->drawText("4bit grayscale.\nbasn0g04.png", 300, page->getHeight() - 150);
+    page->drawPng("res/basn0g08.png", 400, page->getHeight() - 150);
+    page->drawText("8bit grayscale.\nbasn0g08.png", 400, page->getHeight() - 150);
+
+    pdfExport->save("pngtest.pdf");
+}
+#endif
 
 ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::Dialog(cobject)
@@ -76,6 +103,9 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
         save->signal_clicked().connect(
         [this] () {
             try {
+                #ifdef USE_PDF
+                testExportPdf();
+                #endif
                 NomadFileChooser file_chooser(*m_nomadWin, true, "png");
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     if (!m_scanPreview->saveImage(file_chooser.get_filename())) {
@@ -97,18 +127,16 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     auto devs = m_wiaScan->getDevices();
     std::cout << "Devs " << devs.size() << std::endl;
     bool first{true};
-    std::shared_ptr<WiaDevice> activeDev;
     for (auto dev : devs) {
         m_device->append(dev->getDeviceId(), dev->getDeviceName());
         if (first) {
             m_device->set_active_id(dev->getDeviceId());
-            activeDev = dev;
         }
         first = false;
     }
-    //m_action_color_depth = Gio::SimpleAction::create_radio_string("actionColorDepth", "color");
+    m_device->signal_changed().connect(
+            sigc::mem_fun(*this, &ScanDlg::deviceChanged));
     builder->get_widget("radioColor", m_radioColor);
-    //m_radioColor->join_group(m_action_color_depth);
     builder->get_widget("radioGray", m_radioGray);
     m_radioGray->join_group(*m_radioColor);
     m_radioColor->set_active(true);
@@ -117,28 +145,36 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     builder->get_widget("scaleThreshold", m_threshold);
     builder->get_widget("resolution", m_resolution);
 
-    IWiaItem *pChildWiaItem = nullptr;
-    HRESULT hr = activeDev->findItem(activeDev->getWiaItem(), WiaItemTypeImage, &pChildWiaItem);
-    if (SUCCEEDED(hr)) {
-        IWiaPropertyStorage *pWiaPropertyStorage = NULL;
-        hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
-        if (SUCCEEDED(hr) && activeDev) {
-            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_brightness, m_brightness);
-            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_contrast, m_contrast);
-            setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_threshold, m_threshold);
-            setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::property_resolution_x, m_resolution);
-            // also read extends
-            activeDev->readExtends(pWiaPropertyStorage);
+    deviceChanged();
+}
 
+void
+ScanDlg::deviceChanged()
+{
+    std::shared_ptr<WiaDevice> activeDev = getActiveDevice();
+    if (activeDev) {
+        IWiaItem *pChildWiaItem = nullptr;
+        HRESULT hr = activeDev->findItem(activeDev->getWiaItem(), WiaItemTypeImage, &pChildWiaItem);
+        if (SUCCEEDED(hr)) {
+            IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+            hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+            if (SUCCEEDED(hr) && activeDev) {
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_brightness, m_brightness);
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_contrast, m_contrast);
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_threshold, m_threshold);
+                setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::property_resolution_x, m_resolution);
+                // also read extends as we have the storage around
+                activeDev->readExtends(pWiaPropertyStorage);
+            }
+            else {
+                std::cout << "ScanDlg::ScanDlg image item not convertible PropertyStorage!" << std::endl;
+            }
+            pChildWiaItem->Release();
+            pChildWiaItem = nullptr;
         }
         else {
-            std::cout << "ScanDlg::ScanDlg image item not convertible PropertyStorage!" << std::endl;
+            std::cout << "ScanDlg::ScanDlg no image item!" << std::endl;
         }
-        pChildWiaItem->Release();
-        pChildWiaItem = nullptr;
-    }
-    else {
-        std::cout << "ScanDlg::ScanDlg no image item!" << std::endl;
     }
 }
 

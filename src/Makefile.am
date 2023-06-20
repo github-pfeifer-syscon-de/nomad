@@ -22,6 +22,7 @@ nomad_LDADD =  \
 	$(GLIBMM_LIBS) \
 	$(GTKMM_LIBS) \
 	$(GENERICIMG_LIBS) \
+	$(HARU_LIBS) \
 	$(RSVG_LIBS)
 
 nomad_SOURCES = resources.c \
@@ -74,3 +75,12 @@ nomad_SOURCES += \
 	WiaScan.cpp
 endif
 
+if HAVE_PDF
+nomad_SOURCES += \
+	PdfPage.hpp \
+	PdfPage.cpp \
+	PdfFont.hpp \
+	PdfFont.cpp \
+	PdfExport.hpp \
+	PdfExport.cpp
+endif
