@@ -1,5 +1,5 @@
 # nomad
-Simple capture/scan utility.
+Simple capture/scan(win) utility.
 
 Requires genericImg see there for some basic build infos.
 
