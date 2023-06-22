@@ -463,6 +463,10 @@ ScanPreview::savePng(const Glib::ustring& file)
             ImageUtils::grayscalePng(m_pixbuf, file);
             ret = true;
         }
+        else {
+            ImageUtils::blackandwhitePng(m_pixbuf, file);
+            ret = true;
+        }
     }
     return ret;
 }
