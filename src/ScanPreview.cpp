@@ -25,20 +25,15 @@
 #include "WiaProperty.hpp"
 #include "config.h"
 
-#ifdef USE_PDF
-#include "PdfExport.hpp"
-#include "PdfPage.hpp"
-#include "PdfFont.hpp"
-#include "PdfImage.hpp"
-#endif
-
 #ifdef __WIN32__
 #include "WiaScan.hpp"
 
 WorkThread::WorkThread(Glib::Dispatcher& dispatcher
+                        , Glib::Dispatcher& completed
                         , const Glib::ustring& deviceId
                         , const std::map<uint32_t, WiaValue>& properties)
 : m_dispatcher{dispatcher}
+, m_completed{completed}
 , m_deviceId{deviceId}
 , m_properties{properties}
 {
@@ -57,7 +52,6 @@ WorkThread::run()
             if (m_pCallback) {
                 m_result = dev->scan(m_pCallback, m_properties);
                 std::cout << "scan " << (m_result ? "ok" : "err") << std::endl;    // will show error on color scan ?
-                m_completed= true;
                 m_dispatcher.emit();    // ensure we completed (other places with hight rate of activations may loose signals?)
             }
             else {
@@ -69,12 +63,7 @@ WorkThread::run()
     if (!found) {
         std::cout << "The expected device " << m_deviceId << " was not found!" << std::endl;
     }
-}
-
-WiaDataCallback*
-WorkThread::getDataCallback()
-{
-    return m_pCallback;
+    m_completed.emit();
 }
 
 WorkThread::~WorkThread()
@@ -83,15 +72,29 @@ WorkThread::~WorkThread()
         m_pCallback->Release();
         m_pCallback = nullptr;
     }
+}
 
+WiaDataCallback*
+WorkThread::getDataCallback()
+{
+    return m_pCallback;
+}
+
+bool WorkThread::getResult()
+{
+    return m_result;
 }
 #endif
 
-ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+ScanPreview::ScanPreview(
+        BaseObjectType* cobject,
+        const Glib::RefPtr<Gtk::Builder>& builder,
+        Glib::Dispatcher& completed)
 : Gtk::DrawingArea(cobject)
 , m_pixbuf()
 , m_scaled()
 , m_dispatcher()
+, m_completed{completed}
 {
     m_dispatcher.connect(sigc::mem_fun(*this, &ScanPreview::scanProgress));
     add_events(Gdk::EventMask::BUTTON_PRESS_MASK
@@ -138,7 +141,7 @@ ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builde
         }
     }
     return cursorType;
- }
+}
 
 bool
 ScanPreview::on_button_release_event(GdkEventButton* event)
@@ -202,6 +205,23 @@ void
 ScanPreview::setShowMask(bool showMask)
 {
     m_showMask = showMask;
+}
+
+bool ScanPreview::getShowMask()
+{
+    return m_showMask;
+}
+
+bool
+ScanPreview::getResult()
+{
+    return m_worker ? m_worker->getResult() : true;
+}
+
+Glib::RefPtr<Gdk::Pixbuf>
+ScanPreview::getPixbuf()
+{
+    return m_pixbuf;
 }
 
 double
@@ -281,6 +301,7 @@ ScanPreview::create(std::array<int,2> size, const Gdk::Color& background)
     m_scaled.reset();
     queue_draw();
 }
+
 void
 ScanPreview::scanProgress()
 {
@@ -399,7 +420,7 @@ ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>
     cleanup();
     if (m_workThread == nullptr) {
         m_initScan = true;
-        m_worker = new WorkThread(m_dispatcher, devId, properties);
+        m_worker = new WorkThread(m_dispatcher, m_completed, devId, properties);
         //m_workThread = ThreadWrapper ([] (WorkThread* worker) {
         //    worker->run();
         //}, m_worker);
@@ -430,82 +451,18 @@ ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>
 //}
 
 bool
-ScanPreview::saveImage(const Glib::ustring& file)
+ScanPreview::savePng(const Glib::ustring& file)
 {
+    bool ret = false;
     if (m_pixbuf) {
-        if (StringUtils::endsWith(file, ".png")) {
-            if (m_bytePerPixel >= 3) {
-                m_pixbuf->save(file, "png");
-            }
-            else {
-                ImageUtils::grayscalePng(m_pixbuf, file);
-            }
-            return true;
+        if (m_bytePerPixel >= 3) {
+            m_pixbuf->save(file, "png");
+            ret = true;
         }
-#ifdef USE_PDF
-        else if(StringUtils::endsWith(file, ".pdf")) {
-            exportPdf(file);
-            return true;
-        }
-#endif
-        else {
-            std::cout << "Cannot handle " << file << " expecting e.g. .png!" << std::endl;
+        else if (m_bytePerPixel == 1){
+            ImageUtils::grayscalePng(m_pixbuf, file);
+            ret = true;
         }
     }
-    return false;
+    return ret;
 }
-
-#ifdef USE_PDF
-void
-ScanPreview::exportPdf(const Glib::ustring& file)
-{
-    auto pdfExport = std::make_shared<PdfExport>();
-    auto helv = pdfExport->createFont("Helvetica");
-    auto page = std::make_shared<PdfPage>(pdfExport);
-    page->setFont(helv, 20);
-    page->drawText("PngDemo", 220, page->getHeight() - 70);
-    page->setFont(helv, 12);
-
-    std::string tempName;
-    int h = Glib::file_open_tmp(tempName, "temp");
-    close(h);
-    if (m_bytePerPixel >= 3) {
-        m_pixbuf->save(tempName, "png");
-    }
-    else {
-        ImageUtils::grayscalePng(m_pixbuf, tempName);
-    }
-
-    auto img = std::make_shared<PdfImage>(pdfExport);
-    img->loadPng(tempName);
-    std::cout << " width " << img->getWidth()
-              << " height " << img->getHeight()
-              << " PngImage " << tempName
-              << std::endl;
-    float pageAvailWidth = page->getWidth() - 100.0f;
-    float pageAvailHeight = page->getHeight() - 100.0f;
-    float imageWidth = img->getWidth();
-    float imageHeight = img->getHeight();
-    float relWidth = pageAvailWidth / imageWidth;
-    float relHeight = pageAvailHeight / imageHeight;
-    float scale = std::min(relWidth, relHeight);
-    float scaledWidth = imageWidth * scale;
-    float scaledHeight = imageHeight * scale;
-    page->drawImage(img,
-            50.0f, 50.0f,
-            scaledWidth, scaledHeight);
-            //page->getWidth() - 100.0f, page->getHeight() - 100.0f);
-//    page->drawPng("res/basn0g01.png", 100, page->getHeight() - 150);
-//    page->drawText("1bit grayscale.\nbasn0g01.png", 100, page->getHeight() - 150);
-//    page->drawPng("res/basn0g02.png", 200, page->getHeight() - 150);
-//    page->drawText("2bit grayscale.\nbasn0g02.png", 200, page->getHeight() - 150);
-//    page->drawPng("res/basn0g04.png", 300, page->getHeight() - 150);
-//    page->drawText("4bit grayscale.\nbasn0g04.png", 300, page->getHeight() - 150);
-//    page->drawPng("res/basn0g08.png", 400, page->getHeight() - 150);
-//    page->drawText("8bit grayscale.\nbasn0g08.png", 400, page->getHeight() - 150);
-    pdfExport->save(file);
-
-    auto tfile = Gio::File::create_for_path(tempName);
-    tfile->remove();
-}
-#endif

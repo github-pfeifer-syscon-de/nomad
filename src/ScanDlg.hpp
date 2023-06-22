@@ -32,7 +32,8 @@ class ScanDlg
 public:
     ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* m_nomadWin);
     explicit ScanDlg(const ScanDlg& orig) = delete;
-    virtual ~ScanDlg() = default;
+    virtual ~ScanDlg();
+    void scanCompleted();
 protected:
     std::map<uint32_t, WiaValue> getProperties(bool full);
     Glib::ustring getDeviceId();
@@ -49,10 +50,14 @@ protected:
         , Gtk::SpinButton* scale);
 protected:
     void deviceChanged();
+    void cleanup();
+    void exportPdf(const Glib::ustring& file);
+    bool saveImage(const Glib::ustring& file);
+
 private:
     NomadWin* m_nomadWin;
     ScanPreview* m_scanPreview;
-    Gtk::FlowBox* m_flow;
+    Gtk::ListBox* m_list;
     Gtk::Toolbar* m_toolbar;
     Gtk::ComboBoxText *m_device;
     Gtk::RadioButton::Group  m_action_color_depth;
@@ -64,5 +69,8 @@ private:
     Gtk::Scale* m_threshold;
     Gtk::SpinButton* m_resolution;
     std::shared_ptr<WiaScan> m_wiaScan;
+    Gtk::ListBoxRow* m_lastListRow{nullptr};
+    Glib::Dispatcher m_completed;
+    std::list<Glib::RefPtr<Gio::File>> m_pages;
 };
 

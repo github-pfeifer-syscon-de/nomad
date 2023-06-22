@@ -19,19 +19,34 @@
 #include <iostream>
 #include <exception>
 #include <vector>
+#include <StringUtils.hpp>
+#include <unistd.h>
+
+namespace std
+{
+    using ::close;      // see <cstdio> move these to a namespace
+}
 
 #include "config.h"
 #include "ScanDlg.hpp"
 #include "WiaScan.hpp"
 #include "WiaProperty.hpp"
 #include "NomadWin.hpp"
+#ifdef USE_PDF
+#include "PdfExport.hpp"
+#include "PdfPage.hpp"
+#include "PdfFont.hpp"
+#include "PdfImage.hpp"
+#endif
 
 ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::Dialog(cobject)
 , m_nomadWin{nomadWin}
+, m_completed()
 {
     auto icon = Gdk::Pixbuf::create_from_resource(m_nomadWin->get_application()->get_resource_base_path() + "/nomad.png");
     set_icon(icon);
+    m_completed.connect(sigc::mem_fun(*this, &ScanDlg::scanCompleted));
 
     Gtk::Button* preview = nullptr;
     builder->get_widget<Gtk::Button>("preview", preview);
@@ -45,6 +60,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
                 if (!devId.empty()) {
                     m_scanPreview->setShowMask(true);
                     m_scanPreview->scan(devId, properties);
+                    m_lastListRow = nullptr;
                 }
             }
             catch (const Glib::Exception &ex) {
@@ -74,7 +90,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     Gtk::Button* save = nullptr;
     builder->get_widget<Gtk::Button>("save", save);
     if (save) {
-        save->set_tooltip_text("Save (Png)");
+        save->set_tooltip_text("Save");
         save->signal_clicked().connect(
         [this] () {
             try {
@@ -85,7 +101,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
                 #endif
                 NomadFileChooser file_chooser(*m_nomadWin, true, types);
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-                    if (!m_scanPreview->saveImage(file_chooser.get_filename())) {
+                    if (!saveImage(file_chooser.get_filename())) {
                         m_nomadWin->show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
                     }
                 }
@@ -96,8 +112,8 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
         });
     }
 
-    builder->get_widget("flow", m_flow);
-    builder->get_widget_derived("previewImages", m_scanPreview);
+    builder->get_widget("list", m_list);
+    builder->get_widget_derived("previewImages", m_scanPreview, m_completed);
     builder->get_widget("device", m_device);
     // Keep some infos on foreground
     m_wiaScan = std::make_shared<WiaScan>();
@@ -126,6 +142,92 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
 
     deviceChanged();
 }
+
+ScanDlg::~ScanDlg()
+{
+    cleanup();
+}
+
+void
+ScanDlg::cleanup()
+{
+    while (!m_pages.empty()) {
+        auto file = m_pages.back();
+        file->remove();
+        m_pages.pop_back();
+    }
+}
+
+bool
+ScanDlg::saveImage(const Glib::ustring& file)
+{
+    bool ret = false;
+    if (StringUtils::endsWith(file, ".png")) {
+        ret = m_scanPreview->savePng(file);
+    }
+#ifdef USE_PDF
+    else if(StringUtils::endsWith(file, ".pdf")) {
+        exportPdf(file);
+        ret = true;
+    }
+#endif
+    else {
+        std::cout << "Cannot handle " << file << " expecting e.g. .png!" << std::endl;
+    }
+    return ret;
+}
+
+#ifdef USE_PDF
+void
+ScanDlg::exportPdf(const Glib::ustring& file)
+{
+    auto pdfExport = std::make_shared<PdfExport>();
+    auto helv = pdfExport->createFont("Helvetica");
+    //page->drawText("PngDemo", 220, page->getHeight() - 70);
+    //page->setFont(helv, 12);
+
+    //std::string tempName;
+    //int h = Glib::file_open_tmp(tempName, "temp");
+    //close(h);
+    //savePng(tempName);
+    for (auto pngImg : m_pages) {
+        auto page = std::make_shared<PdfPage>(pdfExport);
+        page->setFont(helv, 12);
+        auto img = std::make_shared<PdfImage>(pdfExport);
+        img->loadPng(pngImg->get_path());
+        std::cout << " width " << img->getWidth()
+                  << " height " << img->getHeight()
+                  << " PngImage " << pngImg->get_path()
+                  << std::endl;
+        float pageAvailWidth = page->getWidth() - 100.0f;
+        float pageAvailHeight = page->getHeight() - 100.0f;
+        float imageWidth = img->getWidth();
+        float imageHeight = img->getHeight();
+        float relWidth = pageAvailWidth / imageWidth;
+        float relHeight = pageAvailHeight / imageHeight;
+        float scale = std::min(relWidth, relHeight);
+        float scaledWidth = imageWidth * scale;
+        float scaledHeight = imageHeight * scale;
+        page->drawImage(img,
+                50.0f, 50.0f,
+                scaledWidth, scaledHeight);
+    }
+            //page->getWidth() - 100.0f, page->getHeight() - 100.0f);
+//    page->drawPng("res/basn0g01.png", 100, page->getHeight() - 150);
+//    page->drawText("1bit grayscale.\nbasn0g01.png", 100, page->getHeight() - 150);
+//    page->drawPng("res/basn0g02.png", 200, page->getHeight() - 150);
+//    page->drawText("2bit grayscale.\nbasn0g02.png", 200, page->getHeight() - 150);
+//    page->drawPng("res/basn0g04.png", 300, page->getHeight() - 150);
+//    page->drawText("4bit grayscale.\nbasn0g04.png", 300, page->getHeight() - 150);
+//    page->drawPng("res/basn0g08.png", 400, page->getHeight() - 150);
+//    page->drawText("8bit grayscale.\nbasn0g08.png", 400, page->getHeight() - 150);
+    pdfExport->save(file);
+
+    cleanup();
+    //auto tfile = Gio::File::create_for_path(tempName);
+    //tfile->remove();
+}
+#endif
 
 void
 ScanDlg::deviceChanged()
@@ -282,4 +384,49 @@ ScanDlg::getProperties(bool full)
                 , m_scanPreview->getYEnd());
     }
     return std::map<uint32_t, WiaValue>();
+}
+
+void
+ScanDlg::scanCompleted()
+{
+    std::cout << "ScanDlg::scanCompleted" << std::endl;
+    bool result = m_scanPreview->getResult();
+    bool preview = m_scanPreview->getShowMask();
+    if (!result) {
+        Gtk::MessageDialog messagedialog(*m_nomadWin, "Error scanning!", FALSE, Gtk::MessageType::MESSAGE_WARNING);
+
+        messagedialog.run();
+        messagedialog.hide();
+    }
+    if (!preview) {
+        if (m_lastListRow == nullptr) {
+            m_lastListRow = Gtk::make_managed<Gtk::ListBoxRow>();
+            m_list->append(*m_lastListRow);
+        }
+        else {
+            if (!m_pages.empty()) {
+                auto file = m_pages.back();
+                file->remove();
+                m_pages.pop_back();
+            }
+            m_lastListRow->remove();    // clear previous
+        }
+        auto pixbuf = m_scanPreview->getPixbuf();
+        if (pixbuf) {
+            float width = static_cast<float>(pixbuf->get_width());
+            float height = static_cast<float>(pixbuf->get_height());
+            float scale = 64.0f / std::max(width, height);
+            auto preview = pixbuf->scale_simple(static_cast<int>(scale * width), static_cast<int>(scale * height), Gdk::InterpType::INTERP_BILINEAR);
+            auto image = Gtk::make_managed<Gtk::Image>(preview);
+            m_lastListRow->add(*image);
+
+            std::string tempName;
+            int h = Glib::file_open_tmp(tempName, "savedPng");
+            std::close(h);
+            m_scanPreview->savePng(tempName);
+            m_pages.push_back(Gio::File::create_for_path(tempName));
+        }
+        m_lastListRow->show_all();
+    }
+    m_scanPreview->cleanup();   // release resources
 }
