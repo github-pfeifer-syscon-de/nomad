@@ -37,7 +37,7 @@ public:
     NomadFileChooser(
             Gtk::Window& win,
             bool save,
-            const Glib::ustring& type);
+            const std::vector<Glib::ustring>& types);
     virtual ~NomadFileChooser() = default;
 protected:
 private:

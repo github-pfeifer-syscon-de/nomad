@@ -23,6 +23,7 @@
 #include "PdfPage.hpp"
 #include "PdfExport.hpp"
 #include "PdfFont.hpp"
+#include "PdfImage.hpp"
 
 PdfPage::PdfPage(std::weak_ptr<PdfExport> pdfExport)
 : m_pdfExport{pdfExport}
@@ -76,20 +77,17 @@ PdfPage::getWidth()
 }
 
 void
-PdfPage::drawPng(const Glib::ustring& filename, float x, float y)
+PdfPage::drawImage(std::shared_ptr<PdfImage>& image, float x, float y, float width, float height)
 {
-    auto sharedPdfExport = m_pdfExport.lock();
-    if (sharedPdfExport) {
-        HPDF_Doc pdf = sharedPdfExport->getDoc();
-        HPDF_Image image = HPDF_LoadPngImageFromFile(pdf, filename.c_str());
-
-        /* Draw image to the canvas. */
-        HPDF_Page_DrawImage (
-                m_page,
-                image,
-                x, y,
-                static_cast<HPDF_REAL>(HPDF_Image_GetWidth(image)),
-                static_cast<HPDF_REAL>(HPDF_Image_GetHeight(image)));
+    /* Draw image to the canvas. */
+    HPDF_Image img = image->getPdfImage();
+    if (img) {
+        HPDF_Page_DrawImage(m_page, img
+                            , x, y
+                            , width, height);
+    }
+    else {
+        std::cout << "PdfPage::drawPng no image contained! (require load first)" << std::endl;
     }
 }
 

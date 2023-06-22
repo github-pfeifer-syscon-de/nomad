@@ -9,6 +9,7 @@ AM_CPPFLAGS = \
 	$(GLIBMM_CFLAGS) \
 	$(GTKMM_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
+	$(HARU_CFLAGS) \
 	$(RSVG_CFLAGS)
 
 nomad_CFLAGS = -Wall
@@ -81,6 +82,8 @@ nomad_SOURCES += \
 	PdfPage.cpp \
 	PdfFont.hpp \
 	PdfFont.cpp \
+	PdfImage.hpp \
+	PdfImage.cpp \
 	PdfExport.hpp \
 	PdfExport.cpp
 endif

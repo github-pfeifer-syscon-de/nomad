@@ -16,35 +16,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <iostream>
 
-#include <gtkmm.h>
-#include <hpdf.h>
-#include <memory>
+#include "PdfImage.hpp"
+#include "PdfExport.hpp"
 
-class PdfExport;
-class PdfFont;
-class PdfImage;
-
-class PdfPage
+PdfImage::PdfImage(std::shared_ptr<PdfExport>& pdfExport)
+: m_pdfExport{pdfExport}
 {
-public:
-    PdfPage(std::weak_ptr<PdfExport> pdfExport);
-    explicit PdfPage(const PdfPage& orig) = delete;
-    virtual ~PdfPage() = default;
+}
 
-    void drawText(const Glib::ustring& text, float x, float y);
-    void drawImage(std::shared_ptr<PdfImage>& image, float x, float y, float w, float h);
-    float getHeight();
-    float getWidth();
-    void setFont(std::shared_ptr<PdfFont>& font, float size);
+float
+PdfImage::getWidth()
+{
+    return static_cast<float>(HPDF_Image_GetWidth(m_image));
+}
 
-private:
-    std::weak_ptr<PdfExport> m_pdfExport;
-    HPDF_Destination m_dst{nullptr};
-    HPDF_Page m_page{nullptr};
-    std::shared_ptr<PdfFont> m_font;
-    float m_fontSize{12.0};
-};
+float
+PdfImage::getHeight()
+{
+    return static_cast<float>(HPDF_Image_GetHeight(m_image));
+}
 
+void
+PdfImage::loadPng(const Glib::ustring& filename)
+{
+    auto sharedPdfExport = m_pdfExport.lock();
+    if (sharedPdfExport) {
+        HPDF_Doc pdf = sharedPdfExport->getDoc();
+        m_image = HPDF_LoadPngImageFromFile(pdf, filename.c_str());
+    }
+}
 
+HPDF_Image
+PdfImage::getPdfImage()
+{
+    return m_image;
+}

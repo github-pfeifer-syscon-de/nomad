@@ -17,15 +17,20 @@
  */
 
 #include <iostream>
-#include <gdkmm-3.0/gdkmm/pixbuf.h>
-#include <gdkmm-3.0/gdkmm/rectangle.h>
-#include <gdkmm-3.0/gdkmm/cursor.h>
-#include <gdkmm-3.0/gdkmm/window.h>
-
+#include <StringUtils.hpp>
+#include <ImageUtils.hpp>
 
 #include "ScanPreview.hpp"
 #include "NomadWin.hpp"
 #include "WiaProperty.hpp"
+#include "config.h"
+
+#ifdef USE_PDF
+#include "PdfExport.hpp"
+#include "PdfPage.hpp"
+#include "PdfFont.hpp"
+#include "PdfImage.hpp"
+#endif
 
 #ifdef __WIN32__
 #include "WiaScan.hpp"
@@ -91,12 +96,48 @@ ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builde
     m_dispatcher.connect(sigc::mem_fun(*this, &ScanPreview::scanProgress));
     add_events(Gdk::EventMask::BUTTON_PRESS_MASK
         | Gdk::EventMask::BUTTON_RELEASE_MASK
+        | Gdk::EventMask::POINTER_MOTION_MASK
         | Gdk::EventMask::BUTTON_MOTION_MASK);
 }
 
  ScanPreview::~ScanPreview()
  {
      cleanup(); // remove remaining
+ }
+
+ Gdk::CursorType
+ ScanPreview::getCursor(GdkEventMotion* motion_event)
+ {
+    const auto sensitifity = 12;
+    const auto sensitifity_2 = sensitifity / 2;
+    double mouseX = motion_event->x;
+    double mouseY = motion_event->y;
+    double x1 = convertRel2X(m_xstart);
+    double y1 = convertRel2Y(m_ystart);
+    double x2 = convertRel2X(m_xend);
+    double y2 = convertRel2Y(m_yend);
+    Gdk::CursorType cursorType = Gdk::CursorType::ARROW;
+    if (mouseY >= (y1-sensitifity_2) && mouseY <= (y2+sensitifity_2)) {
+        if (std::abs(mouseX - x1) < sensitifity) {
+            // left
+            cursorType = Gdk::CursorType::LEFT_SIDE;
+        }
+        if (std::abs(mouseX - x2) < sensitifity && mouseY >= y1 && mouseY <= y2) {
+            // right
+            cursorType = Gdk::CursorType::RIGHT_SIDE;
+        }
+    }
+    if (mouseX >= (x1-sensitifity_2) && mouseX <= (x2+sensitifity_2)) {
+        if (std::abs(mouseY - y1) < sensitifity) {
+            // top
+            cursorType = Gdk::CursorType::TOP_SIDE;
+        }
+        if (std::abs(mouseY - y2) < sensitifity) {
+            // bottom
+            cursorType = Gdk::CursorType::BOTTOM_SIDE;
+        }
+    }
+    return cursorType;
  }
 
 bool
@@ -110,64 +151,47 @@ ScanPreview::on_button_release_event(GdkEventButton* event)
     return FALSE;
 }
 
-
 bool
 ScanPreview::on_motion_notify_event(GdkEventMotion* motion_event)
 {
     bool btn1 = (motion_event->state  & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
-    if (btn1 && m_scaled) {
-        const auto sensitifity = 12;
-        const auto sensitifity_2 = sensitifity / 2;
-        double mouseX = motion_event->x;
-        double mouseY = motion_event->y;
-        double x1 = convertRel2X(m_xstart);
-        double y1 = convertRel2Y(m_ystart);
-        double x2 = convertRel2X(m_xend);
-        double y2 = convertRel2Y(m_yend);
-        double displayedWidth = m_scaled->get_width();
-        double displayedHeight = m_scaled->get_height();
-        bool redraw = false;
-        Gdk::CursorType cursorType = Gdk::CursorType::ARROW;
-        if (mouseY >= (y1-sensitifity_2) && mouseY <= (y2+sensitifity_2)) {
-            if (std::abs(mouseX - x1) < sensitifity) {
-                // left
-                m_xstart = mouseX / displayedWidth; // std::min(, x2 - 4.0);
-                redraw = true;
-                cursorType = Gdk::CursorType::LEFT_SIDE;
-            }
-            if (std::abs(mouseX - x2) < sensitifity && mouseY >= y1 && mouseY <= y2) {
-                // right
-                m_xend = mouseX / displayedWidth; //std::max(, 4.0);
-                redraw = true;
-                cursorType = Gdk::CursorType::RIGHT_SIDE;
-            }
-        }
-        if (mouseX >= (x1-sensitifity_2) && mouseX <= (x2+sensitifity_2)) {
-            if (std::abs(mouseY - y1) < sensitifity) {
-                // top
-                m_ystart = mouseY / displayedHeight; // std::min(, y2 - 4.0);
-                redraw = true;
-                cursorType = Gdk::CursorType::TOP_SIDE;
-            }
-            if (std::abs(mouseY - y2) < sensitifity) {
-                // bottom
-                m_yend = mouseY / displayedHeight; //std::max(, 4.0);
-                redraw = true;
-                cursorType = Gdk::CursorType::BOTTOM_SIDE;
-            }
-        }
+    Gdk::CursorType cursorType = getCursor(motion_event);
+    if (m_showMask) {
         auto gdkWindow = get_window();
-        if (redraw) {
-            if (cursorType != Gdk::CursorType::ARROW) {
-                Glib::RefPtr<Gdk::Cursor> display_cursor = Gdk::Cursor::create(gdkWindow->get_display(), cursorType);
-                gdkWindow->set_cursor(display_cursor);
-                m_changedCursor = true;
-            }
-            queue_draw();
+        if (cursorType != Gdk::CursorType::ARROW) {
+            Glib::RefPtr<Gdk::Cursor> display_cursor = Gdk::Cursor::create(gdkWindow->get_display(), cursorType);
+            gdkWindow->set_cursor(display_cursor);
+            m_changedCursor = true;
         }
         else {
             gdkWindow->set_cursor();
-             m_changedCursor = false;
+            m_changedCursor = false;
+        }
+    }
+    if (btn1 && m_scaled) {
+        bool redraw = false;
+        double mouseX = motion_event->x;
+        double mouseY = motion_event->y;
+        double displayedWidth = m_scaled->get_width();
+        double displayedHeight = m_scaled->get_height();
+        if (cursorType == Gdk::CursorType::LEFT_SIDE) {
+            m_xstart = mouseX / displayedWidth;
+            redraw = true;
+        }
+        else if (cursorType == Gdk::CursorType::RIGHT_SIDE) {
+            m_xend = mouseX / displayedWidth;
+            redraw = true;
+        }
+        else if (cursorType == Gdk::CursorType::TOP_SIDE) {
+            m_ystart = mouseY / displayedHeight;
+            redraw = true;
+        }
+        else if (cursorType ==  Gdk::CursorType::BOTTOM_SIDE) {
+            m_yend = mouseY / displayedHeight;
+            redraw = true;
+        }
+        if (redraw) {
+            queue_draw();
         }
         return TRUE;
     }
@@ -265,7 +289,6 @@ ScanPreview::scanProgress()
         int32_t transferedPercent = 0;
         uint32_t transfereAlloc = 0;
         uint8_t* p = m_worker->getDataCallback()->getDataTransfered(&transferedSize, &transferedPercent, &transfereAlloc);
-
         std::cout  << "percent " << transferedPercent
                    << " size " << transferedSize
                    << std::endl;
@@ -304,7 +327,7 @@ ScanPreview::scanProgress()
                 uint32_t headerSize = (transfereAlloc) - (byteRowStride * height - 1); // the size of header e.g. for gray is larger than just sizeof(BITMAPINFOHEADER)
                 uint8_t* bmpData = p + headerSize;
                 uint32_t* pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels());
-                uint32_t bytePerPixel = bi->biBitCount / 8;
+                m_bytePerPixel = bi->biBitCount / 8;
                 int32_t uptoRow = std::min(static_cast<int32_t>((transferedSize - headerSize) / byteRowStride), height);
                 std::cout << "uptoRow " << uptoRow
                           << " byte stride " << byteRowStride << std::endl;
@@ -319,12 +342,12 @@ ScanPreview::scanProgress()
                     for (int32_t x = 0; x < width; ++x) {
                         //  windows   BGR?
                         uint32_t rgb;
-                        if (bytePerPixel >= 3) {       // discard alpha in case it is there...
+                        if (m_bytePerPixel >= 3) {       // discard alpha in case it is there...
                             rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
                         }
                         else {
                             uint8_t gray;
-                            if (bytePerPixel == 1)  {   // grayscale
+                            if (m_bytePerPixel == 1)  {   // grayscale
                                 gray = *rows;
                             }
                             else {                      // b&w
@@ -336,7 +359,7 @@ ScanPreview::scanProgress()
                         //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
                         *rowd = 0xff000000u | rgb;
                         ++rowd;
-                        rows += bytePerPixel;
+                        rows += m_bytePerPixel;
                     }
                 }
                 m_scaled.reset(); // need to refresh
@@ -387,12 +410,102 @@ ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>
     }
 }
 
+// convert alpha to grayscales if necessary
+//   looks nice to use something more adaptable,
+//   but the outcome looks blured ...
+//Cairo::RefPtr<Cairo::Surface>
+//convertSurface(Cairo::RefPtr<Cairo::ImageSurface>& surface)
+//{
+//    if (surface->get_format() == Cairo::Format::FORMAT_A1
+//     || surface->get_format() == Cairo::Format::FORMAT_A8) {
+//        auto cr = Cairo::Context::create(surface);
+//        cr->push_group_with_content(Cairo::Content::CONTENT_COLOR_ALPHA);
+//        cr->set_source_rgb(1.0, 1.0, 1.0);
+//        cr->paint();
+//        cr->set_source_rgb(0.0, 0.0, 0.0);
+//        cr->mask(cr->get_target(), 0.0, 0.0);
+//        return cr->get_group_target();
+//    }
+//    return surface;
+//}
+
 bool
 ScanPreview::saveImage(const Glib::ustring& file)
 {
     if (m_pixbuf) {
-        m_pixbuf->save(file, "png");
-        return true;
+        if (StringUtils::endsWith(file, ".png")) {
+            if (m_bytePerPixel >= 3) {
+                m_pixbuf->save(file, "png");
+            }
+            else {
+                ImageUtils::grayscalePng(m_pixbuf, file);
+            }
+            return true;
+        }
+#ifdef USE_PDF
+        else if(StringUtils::endsWith(file, ".pdf")) {
+            exportPdf(file);
+            return true;
+        }
+#endif
+        else {
+            std::cout << "Cannot handle " << file << " expecting e.g. .png!" << std::endl;
+        }
     }
     return false;
 }
+
+#ifdef USE_PDF
+void
+ScanPreview::exportPdf(const Glib::ustring& file)
+{
+    auto pdfExport = std::make_shared<PdfExport>();
+    auto helv = pdfExport->createFont("Helvetica");
+    auto page = std::make_shared<PdfPage>(pdfExport);
+    page->setFont(helv, 20);
+    page->drawText("PngDemo", 220, page->getHeight() - 70);
+    page->setFont(helv, 12);
+
+    std::string tempName;
+    int h = Glib::file_open_tmp(tempName, "temp");
+    close(h);
+    if (m_bytePerPixel >= 3) {
+        m_pixbuf->save(tempName, "png");
+    }
+    else {
+        ImageUtils::grayscalePng(m_pixbuf, tempName);
+    }
+
+    auto img = std::make_shared<PdfImage>(pdfExport);
+    img->loadPng(tempName);
+    std::cout << " width " << img->getWidth()
+              << " height " << img->getHeight()
+              << " PngImage " << tempName
+              << std::endl;
+    float pageAvailWidth = page->getWidth() - 100.0f;
+    float pageAvailHeight = page->getHeight() - 100.0f;
+    float imageWidth = img->getWidth();
+    float imageHeight = img->getHeight();
+    float relWidth = pageAvailWidth / imageWidth;
+    float relHeight = pageAvailHeight / imageHeight;
+    float scale = std::min(relWidth, relHeight);
+    float scaledWidth = imageWidth * scale;
+    float scaledHeight = imageHeight * scale;
+    page->drawImage(img,
+            50.0f, 50.0f,
+            scaledWidth, scaledHeight);
+            //page->getWidth() - 100.0f, page->getHeight() - 100.0f);
+//    page->drawPng("res/basn0g01.png", 100, page->getHeight() - 150);
+//    page->drawText("1bit grayscale.\nbasn0g01.png", 100, page->getHeight() - 150);
+//    page->drawPng("res/basn0g02.png", 200, page->getHeight() - 150);
+//    page->drawText("2bit grayscale.\nbasn0g02.png", 200, page->getHeight() - 150);
+//    page->drawPng("res/basn0g04.png", 300, page->getHeight() - 150);
+//    page->drawText("4bit grayscale.\nbasn0g04.png", 300, page->getHeight() - 150);
+//    page->drawPng("res/basn0g08.png", 400, page->getHeight() - 150);
+//    page->drawText("8bit grayscale.\nbasn0g08.png", 400, page->getHeight() - 150);
+    pdfExport->save(file);
+
+    auto tfile = Gio::File::create_for_path(tempName);
+    tfile->remove();
+}
+#endif

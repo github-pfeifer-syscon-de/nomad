@@ -18,38 +18,13 @@
 
 #include <iostream>
 #include <exception>
+#include <vector>
 
 #include "config.h"
 #include "ScanDlg.hpp"
 #include "WiaScan.hpp"
 #include "WiaProperty.hpp"
 #include "NomadWin.hpp"
-#include "PdfExport.hpp"
-#include "PdfPage.hpp"
-#include "PdfFont.hpp"
-
-#ifdef USE_PDF
-static
-void testExportPdf()
-{
-    auto pdfExport = std::make_shared<PdfExport>();
-    auto helv = pdfExport->createFont("Helvetica");
-    auto page = std::make_shared<PdfPage>(pdfExport);
-    page->setFont(helv, 20);
-    page->drawText("PngDemo", 220, page->getHeight() - 70);
-    page->setFont(helv, 12);
-    page->drawPng("res/basn0g01.png", 100, page->getHeight() - 150);
-    page->drawText("1bit grayscale.\nbasn0g01.png", 100, page->getHeight() - 150);
-    page->drawPng("res/basn0g02.png", 200, page->getHeight() - 150);
-    page->drawText("2bit grayscale.\nbasn0g02.png", 200, page->getHeight() - 150);
-    page->drawPng("res/basn0g04.png", 300, page->getHeight() - 150);
-    page->drawText("4bit grayscale.\nbasn0g04.png", 300, page->getHeight() - 150);
-    page->drawPng("res/basn0g08.png", 400, page->getHeight() - 150);
-    page->drawText("8bit grayscale.\nbasn0g08.png", 400, page->getHeight() - 150);
-
-    pdfExport->save("pngtest.pdf");
-}
-#endif
 
 ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::Dialog(cobject)
@@ -103,10 +78,12 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
         save->signal_clicked().connect(
         [this] () {
             try {
+                std::vector<Glib::ustring> types;
+                types.push_back("png");
                 #ifdef USE_PDF
-                testExportPdf();
+                types.push_back("pdf");
                 #endif
-                NomadFileChooser file_chooser(*m_nomadWin, true, "png");
+                NomadFileChooser file_chooser(*m_nomadWin, true, types);
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     if (!m_scanPreview->saveImage(file_chooser.get_filename())) {
                         m_nomadWin->show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
@@ -139,6 +116,8 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     builder->get_widget("radioColor", m_radioColor);
     builder->get_widget("radioGray", m_radioGray);
     m_radioGray->join_group(*m_radioColor);
+    builder->get_widget("radioBW", m_radioBW);
+    m_radioBW->join_group(*m_radioColor);
     m_radioColor->set_active(true);
     builder->get_widget("scaleBrightness", m_brightness);
     builder->get_widget("scaleContrast", m_contrast);
@@ -159,10 +138,10 @@ ScanDlg::deviceChanged()
             IWiaPropertyStorage *pWiaPropertyStorage = NULL;
             hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
             if (SUCCEEDED(hr) && activeDev) {
-                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_brightness, m_brightness);
-                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_contrast, m_contrast);
-                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::property_threshold, m_threshold);
-                setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::property_resolution_x, m_resolution);
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyBrightness, m_brightness);
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyContrast, m_contrast);
+                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyThreshold, m_threshold);
+                setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::PropertyResolutionX, m_resolution);
                 // also read extends as we have the storage around
                 activeDev->readExtends(pWiaPropertyStorage);
             }
@@ -236,7 +215,7 @@ ScanDlg::setupScale(
                         int min = std::get<int32_t>(values[1]);
                         int max = std::get<int32_t>(values[0]);
 
-                        if (max < 255) {    // as it seems the range is interpreted differently?
+                        if (max < 255) {    // as it seems the range is interpreted differently for brightness&contrast
                             min = -max;
                         }
                         scale->set_range(min, max);
@@ -280,15 +259,23 @@ ScanDlg::getProperties(bool full)
         auto contr = static_cast<int32_t>(m_contrast->get_value());
         auto tresh = static_cast<int32_t>(m_threshold->get_value());
         auto res = m_resolution->get_value_as_int();
-        bool color = m_radioColor->get_active();
-
+        int32_t bits = 8;
+        if (m_radioColor->get_active()) {
+            bits = 24;
+        }
+        else if(m_radioGray->get_active()) {
+            bits = 8;
+        }
+        else if(m_radioBW->get_active()) {
+            bits = 1;
+        }
         return activeDevice->buildScanProperties(
                 full
                 , bright
                 , contr
                 , tresh
                 , res
-                , color
+                , bits
                 , m_scanPreview->getXStart()
                 , m_scanPreview->getYStart()
                 , m_scanPreview->getXEnd()

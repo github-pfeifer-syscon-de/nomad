@@ -18,33 +18,25 @@
 
 #pragma once
 
-#include <gtkmm.h>
-#include <hpdf.h>
+#include <glibmm.h>
 #include <memory>
+#include <hpdf.h>
 
 class PdfExport;
-class PdfFont;
-class PdfImage;
 
-class PdfPage
-{
+class PdfImage {
 public:
-    PdfPage(std::weak_ptr<PdfExport> pdfExport);
-    explicit PdfPage(const PdfPage& orig) = delete;
-    virtual ~PdfPage() = default;
+    PdfImage(std::shared_ptr<PdfExport>& pdfExport);
+    explicit PdfImage(const PdfImage& orig) = delete;
+    virtual ~PdfImage() = default;
 
-    void drawText(const Glib::ustring& text, float x, float y);
-    void drawImage(std::shared_ptr<PdfImage>& image, float x, float y, float w, float h);
-    float getHeight();
     float getWidth();
-    void setFont(std::shared_ptr<PdfFont>& font, float size);
+    float getHeight();
+    HPDF_Image getPdfImage();
+    void loadPng(const Glib::ustring& filename);
 
 private:
+    HPDF_Image m_image{nullptr};
     std::weak_ptr<PdfExport> m_pdfExport;
-    HPDF_Destination m_dst{nullptr};
-    HPDF_Page m_page{nullptr};
-    std::shared_ptr<PdfFont> m_font;
-    float m_fontSize{12.0};
 };
-
 

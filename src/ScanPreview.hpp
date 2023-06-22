@@ -81,7 +81,10 @@ protected:
     double convertRel2X(double relx);
     double convertRel2Y(double rely);
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
-    bool on_button_release_event(GdkEventButton* event);
+    bool on_button_release_event(GdkEventButton* event) override;
+    Gdk::CursorType getCursor(GdkEventMotion* motion_event);
+    void saveGrayscale(const Glib::ustring& file);
+    void exportPdf(const Glib::ustring& file);
 private:
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
@@ -97,5 +100,6 @@ private:
     double m_yend{0.9};
     bool m_showMask{true};
     bool m_changedCursor{false};
+    uint32_t m_bytePerPixel{8};
 };
 

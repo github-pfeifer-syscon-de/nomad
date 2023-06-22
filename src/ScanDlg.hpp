@@ -58,6 +58,7 @@ private:
     Gtk::RadioButton::Group  m_action_color_depth;
     Gtk::RadioButton* m_radioColor;
     Gtk::RadioButton* m_radioGray;
+    Gtk::RadioButton* m_radioBW;
     Gtk::Scale* m_brightness;
     Gtk::Scale* m_contrast;
     Gtk::Scale* m_threshold;

@@ -45,16 +45,16 @@ public:
     Glib::ustring getDeviceName();
     HRESULT findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaItem);
     IWiaItem* getWiaItem();
-    static constexpr auto property_bits = 4104u;
-    static constexpr auto property_resolution_x = 6147u;
-    static constexpr auto property_resolution_y = 6148u;
-    static constexpr auto property_start_x = 6149u;
-    static constexpr auto property_start_y = 6150u;
-    static constexpr auto property_extend_x = 6151u;
-    static constexpr auto property_extend_y = 6152u;
-    static constexpr auto property_brightness = 6154u;
-    static constexpr auto property_contrast = 6155u;
-    static constexpr auto property_threshold = 6159u;
+    static constexpr auto PropertyBits = 4104u;
+    static constexpr auto PropertyResolutionX = 6147u;
+    static constexpr auto PropertyResolutionY = 6148u;
+    static constexpr auto PropertyStartX = 6149u;
+    static constexpr auto PropertyStartY = 6150u;
+    static constexpr auto PropertyExtendX = 6151u;
+    static constexpr auto PropertyExtendY = 6152u;
+    static constexpr auto PropertyBrightness = 6154u;
+    static constexpr auto PropertyContrast = 6155u;
+    static constexpr auto PropertyThreshold = 6159u;
     void readExtends(IWiaPropertyStorage *pWiaPropertyStorage);
     std::map<uint32_t, WiaValue> buildScanProperties(
             bool full
@@ -62,7 +62,7 @@ public:
             , int32_t contr
             , int32_t tresh
             , int32_t res
-            , bool color
+            , int32_t bits
             , double xRelStart
             , double yRelStart
             , double xRelEnd
@@ -72,7 +72,8 @@ protected:
     HRESULT createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID );
     HRESULT transferWiaItem(IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties);
     void getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section);
-
+    int32_t convertX4DPI(int32_t y1, int32_t dpi);
+    int32_t convertY4DPI(int32_t y1, int32_t dpi);
 private:
     WiaScan* m_winScan;
     IWiaItem* m_pWiaDevice;
@@ -84,4 +85,6 @@ private:
     std::vector<WiaValue> m_startY;
     std::vector<WiaValue> m_extendX;
     std::vector<WiaValue> m_extendY;
+    int32_t horzResolution{300};
+    int32_t vertResolution{300};
 };

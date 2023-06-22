@@ -34,11 +34,9 @@
 NomadFileChooser::NomadFileChooser(
         Gtk::Window& win,
         bool save,
-        const Glib::ustring& type)
+        const std::vector<Glib::ustring>& types)
 : Gtk::FileChooserDialog(win
-                        , save
-                        ? Glib::ustring::sprintf("Save %s-file", type)
-                        : Glib::ustring::sprintf("Open %s-file", type)
+                        , ""
                         , save
                         ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
                         : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
@@ -48,11 +46,22 @@ NomadFileChooser::NomadFileChooser(
     add_button(save
                 ? "_Save"
                 : "_Open", Gtk::RESPONSE_ACCEPT);
+    Glib::ustring allTypes;
+    for (auto type : types) {
+        if (!allTypes.empty()) {
+            allTypes += ", ";
+        }
+        allTypes += type;
+    }
+    set_title(save
+              ? Glib::ustring::sprintf("Save %s-file(s)", allTypes)
+              : Glib::ustring::sprintf("Open %s-file(s)", allTypes));
 
     Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
     filter->set_name("Type");
-    //filter->add_mime_type("text/plain");
-    filter->add_pattern(Glib::ustring::sprintf("*.%s", type));
+    for (auto type : types) {
+        filter->add_pattern(Glib::ustring::sprintf("*.%s", type));
+    }
     set_filter(filter);
 }
 
@@ -206,7 +215,7 @@ NomadWin::create_buttons()
     btn_load->set_image_from_icon_name("gtk-directory");
     btn_load->signal_clicked().connect([this] () {
         try {
-            NomadFileChooser file_chooser(*this, false, "svg");
+            NomadFileChooser file_chooser(*this, false, {"svg"});
             if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                 //std::string home = Glib::get_home_dir();
                 //Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
@@ -316,7 +325,7 @@ NomadWin::activate_actions()
         [this] (const Glib::VariantBase& value)  {
             try {
                 if (m_preview->getPixbuf()) {
-                    NomadFileChooser file_chooser(*this, true, "png");
+                    NomadFileChooser file_chooser(*this, true, {"png", "jpg"});
                     if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                         if (!m_preview->saveImage(file_chooser.get_filename())) {
                             show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
@@ -333,7 +342,7 @@ NomadWin::activate_actions()
     load_action->signal_activate().connect (
         [this] (const Glib::VariantBase& value)  {
             try {
-                NomadFileChooser file_chooser(*this, false, "png");
+                NomadFileChooser file_chooser(*this, false, {"png", "jpg"});
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     try {
                         m_preview->loadImage(file_chooser.get_file());
