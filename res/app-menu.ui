@@ -60,6 +60,15 @@
         </item>
       </section>
     </submenu>
+    <submenu id="pen">
+      <attribute name="label" translatable="yes">Pen</attribute>
+      <section>
+        <item>
+          <attribute translatable="yes" name="label">Draw</attribute>
+          <attribute name="action">win.draw</attribute>
+        </item>
+      </section>
+    </submenu>
     <submenu>
       <attribute translatable="yes" name="label">Help</attribute>
       <section>

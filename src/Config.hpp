@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
@@ -19,13 +19,13 @@
 #pragma once
 
 class Config
-: public Glib::Object {
+: public Glib::Object
+{
 public:
-    Config();
+    Config(Glib::KeyFile* m_config);
     explicit Config(const Config& cnf) = delete;
     virtual ~Config() = default;
 
-    void save_config();
     int getDelay() {
         return m_delaySec;
     }
@@ -56,8 +56,8 @@ public:
     void setTextFont(const Glib::ustring& textFont) {
         m_textFont = textFont;
     }
+    void save_config();
 protected:
-    Glib::ustring get_config_name();
     void read_config();
     static constexpr auto DEFAULT_DELAY{5};
 private:
@@ -67,10 +67,7 @@ private:
     Gdk::Color m_foreground;
     Glib::ustring m_textFont{"Sans 10"};
     Glib::KeyFile* m_config;
-    //Glib::Property<Glib::ustring> property_delay_;
-    //Glib::Property<bool> property_captWindow_;
 
-    static constexpr auto CONF_FILE{"nomad.conf"};
     static constexpr auto MAIN_GRP{"main"};
     static constexpr auto DELAY_CONF{"delaySec"};
     static constexpr auto CAPTURE_WINDOW_CONF{"captureWindow"};

@@ -15,9 +15,6 @@ AC_CONFIG_HEADERS([config.h])
 AX_CHECK_ENABLE_DEBUG([info], [DEBUG], [RELEASE], [IS-RELEASE])
 AC_PROG_CC
 AC_PROG_CXX
-dnl (did choose c++20 for consistency across libs and programs)
-dnl so if you happen to find yourself in the need to use
-dnl a older compiler, c++17 should work as well.
 AX_CXX_COMPILE_STDCXX([20], [noext], [optional])
 
 LT_INIT
@@ -35,7 +32,7 @@ AC_SEARCH_LIBS([HPDF_Page_BeginText], [hpdf], [USE_LIBHARU="true"])
 
 PKG_CHECK_MODULES([RSVG], [librsvg-2.0])
 
-PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.1.0])
+PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.2.0])
 
 AM_CONDITIONAL([HAVE_X11], [test x$USE_X11 = xtrue])
 AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])

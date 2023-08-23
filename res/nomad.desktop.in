@@ -7,3 +7,4 @@ Comment=Capture utility
 Categories=Application;Utility;
 Exec=nomad
 Icon=@APP_ICON@
+MimeType=image/png;image/gif;image/jpeg;image/bmp;image/x-pixmap;image/tiff;image/svg+xml;image/x-xpixmap;

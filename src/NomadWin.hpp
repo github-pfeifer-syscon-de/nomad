@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -21,53 +21,39 @@
 #include <gtkmm.h>
 #include <string>
 
-#include "NomadTreeView.hpp"
 #include "Preview.hpp"
 #include "Config.hpp"
+#include "ImageView.hpp"
 
 class NomadApp;
 
-/*
- * slightly customized file chooser
- */
-class NomadFileChooser
-: public Gtk::FileChooserDialog
+class NomadWin
+: public ImageView<Gtk::ApplicationWindow,GtkApplicationWindow>
 {
 public:
-    NomadFileChooser(
-            Gtk::Window& win,
-            bool save,
-            const std::vector<Glib::ustring>& types);
-    virtual ~NomadFileChooser() = default;
-protected:
-private:
-};
-
-
-class NomadWin
-: public Gtk::ApplicationWindow {
-public:
-    NomadWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, NomadApp *appl);
+    NomadWin(BaseObjectType* cobject
+        , const Glib::RefPtr<Gtk::Builder>& builder
+        , std::shared_ptr<Mode> mode
+        , ApplicationSupport& appSupport);
     explicit NomadWin(const NomadWin&) = delete;
     virtual ~NomadWin() = default;
 
-    void on_hide() override;
-    void show_error(Glib::ustring msg);
     void eval(Glib::ustring text, Gtk::TextIter& end);
     void apply_font(bool defaultFont);
     bool timeout();
+    bool ask_size(std::array<int,2>& size, Gdk::Color& background);
+    std::shared_ptr<Config> getConfig();
+    void on_hide() override;
+
 protected:
     bool ask_text(TextInfo& text);
-    bool ask_size(std::array<int,2>& size, Gdk::Color& background);
+    Preview* getPreview();
+    virtual Gtk::Menu* build_popup() override;
 
 private:
     void activate_actions();
     void create_buttons();
 
-    NomadApp* m_application;
-    NomadTreeView* m_treeView;
-    Preview* m_preview;
-    Gtk::ButtonBox* m_buttons;
     sigc::connection m_timer;
     std::shared_ptr<Config> m_config;
     static constexpr auto CAPTURE_ACTION_NAME = "capture";

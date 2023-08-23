@@ -1,6 +1,6 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2020 rpf
+ * Copyright (C) 2023 RPf <gpl3@pfeifer-syscon.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,24 +18,28 @@
 
 #pragma once
 
-#include <gtkmm.h>
+#include <Mode.hpp>
 
 class NomadWin;
 
-class NomadTreeView : public Gtk::TreeView {
+class EditMode
+: public Mode
+{
 public:
-    NomadTreeView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* calcppWin);
-    explicit NomadTreeView(const NomadTreeView&) = delete;
-    virtual ~NomadTreeView() = default;
+    EditMode();
+    explicit EditMode(const EditMode& orig) = delete;
+    virtual ~EditMode() = default;
+    void setNomadWin(NomadWin* nomadWin);
 
-    void value_cell_data_func(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter, int model_column);
-
+    bool isComplete() override;
+    void show(ViewIntf* viewIntf) override;
+    void buildMenu(Gtk::Menu* subMenu, ViewIntf* imageView, function_ptr fun) override;
+    void prev() override;
+    void next() override;
+    void set(int32_t n) override;
+    bool join(std::shared_ptr<Mode> other) override;
+    bool hasNavigation() override;
 private:
-
-    void create_column_name(Glib::ustring name, Gtk::TreeModelColumn<Glib::ustring>& col);
-
-    void create_column_value(Glib::ustring name, Gtk::TreeModelColumn<double>& col);
-
     NomadWin* m_nomadWin;
 };
 

@@ -33,8 +33,8 @@ nomad_SOURCES = resources.c \
 	NomadApp.hpp \
 	NomadWin.cpp \
 	NomadWin.hpp \
-	NomadTreeView.cpp \
-	NomadTreeView.hpp \
+	EditMode.cpp \
+	EditMode.hpp \
 	Capture.hpp \
 	Capture.cpp \
 	Shape.hpp \
@@ -45,14 +45,10 @@ nomad_SOURCES = resources.c \
 	TextShape.cpp \
 	SvgShape.hpp \
 	SvgShape.cpp \
+	PenlWindow.hpp \
+	PenlWindow.cpp \
 	ScaleableShape.hpp \
 	ScaleableShape.cpp \
-	GenericCallback.hpp \
-	GenericCallback.cpp \
-	ScanDlg.hpp \
-	ScanDlg.cpp \
-	ScanPreview.hpp \
-	ScanPreview.cpp \
 	Preview.cpp \
 	Preview.hpp
 
@@ -64,6 +60,12 @@ endif
 
 if HAVE_WIN
 nomad_SOURCES += \
+	GenericCallback.hpp \
+	GenericCallback.cpp \
+	ScanDlg.hpp \
+	ScanDlg.cpp \
+	ScanPreview.hpp \
+	ScanPreview.cpp \
 	WinCapture.hpp \
 	WinCapture.cpp \
 	WiaDataCallback.hpp \

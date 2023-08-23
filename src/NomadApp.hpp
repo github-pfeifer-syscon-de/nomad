@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -19,11 +19,14 @@
 #pragma once
 
 #include <gtkmm.h>
+#include <ApplicationSupport.hpp>
 
-#include "NomadWin.hpp"
 
 #undef NOMAD_DEBUG
 
+template<class T,typename G>
+class ImageView;
+class NomadWin;
 /*
  * get the application up and running
  *   about and help dialog
@@ -41,8 +44,15 @@ public:
     Glib::RefPtr<Gtk::Builder> get_menu_builder();
 
     Glib::ustring get_exec_path();
+
+    void on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint) override;
+protected:
+    NomadWin* getOrCreateImageWindow(std::shared_ptr<Mode> mode);
+    NomadWin* createImageWindow(std::shared_ptr<Mode> mode);
+
 private:
-    NomadWin *m_nomadAppWindow;
+    NomadWin* m_nomadAppWindow{nullptr};
+    ApplicationSupport m_appSupport;
     Glib::ustring m_exec;
     Glib::RefPtr<Gtk::Builder> m_builder;
 

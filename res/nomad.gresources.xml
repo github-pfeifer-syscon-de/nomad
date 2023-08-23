@@ -8,6 +8,8 @@
     <file preprocess="xml-stripblanks">text-dlg.ui</file>
     <file preprocess="xml-stripblanks">size-dlg.ui</file>
     <file preprocess="xml-stripblanks">scan-dlg.ui</file>
+    <file preprocess="xml-stripblanks">imageview.ui</file>
+    <file preprocess="xml-stripblanks">penl-win.ui</file>
     <file>nomad.png</file>
   </gresource>
 </gresources>

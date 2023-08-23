@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2023 rpf
  *
@@ -25,11 +25,9 @@
 
 jmp_buf env;
 
-static
+static void
 #ifdef HPDF_DLL
-void  __stdcall
-#else
-void
+  __stdcall
 #endif
 error_handler(HPDF_STATUS   error_no,
                 HPDF_STATUS   detail_no,

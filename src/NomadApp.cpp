@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -18,45 +18,101 @@
 
 #include <iostream>
 #include <exception>
+#include <ImageView.hpp>
 
 #include <config.h>
 #include "NomadApp.hpp"
+#include "NomadWin.hpp"
+#include "EditMode.hpp"
 
 NomadApp::NomadApp(int argc, char **argv)
-: Gtk::Application(argc, argv, "de.pfeifer_syscon.nomad")
-, m_nomadAppWindow{nullptr}
+: Gtk::Application(argc, argv, "de.pfeifer_syscon.nomad", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
+, m_appSupport{"nomad.conf"}
 , m_exec{argv[0]}
 {
+    m_appSupport.setApplication(this);
     #ifdef NOMAD_DEBUG
     std::cout << "NomadApp::NomadApp" << std::endl;
     #endif
 }
 
 
+NomadWin*
+NomadApp::createImageWindow(std::shared_ptr<Mode> mode)
+{
+    NomadWin* imageView{nullptr};
+    auto builder = Gtk::Builder::create();
+    try {
+        Gtk::Application* appl = m_appSupport.getApplication();
+        builder->add_from_resource(appl->get_resource_base_path() + "/imageview.ui");
+        builder->get_widget_derived("ImageView", imageView, mode, m_appSupport);
+    }
+    catch (const Glib::Error &ex) {
+        std::cerr << "Unable to load imageview.ui: " << ex.what() << std::endl;
+    }
+    return imageView;
+}
+
+NomadWin*
+NomadApp::getOrCreateImageWindow(std::shared_ptr<Mode> mode)
+{
+    // The application has been asked to open some files,
+    // so let's open a new view for each one.
+    NomadWin* appwindow = nullptr;
+    auto windows = get_windows();
+    if (windows.size() > 0) {
+        appwindow = dynamic_cast<NomadWin*>(windows[0]);
+    }
+    if (!appwindow) {
+        m_nomadAppWindow = createImageWindow(mode);
+        add_window(*m_nomadAppWindow);
+    }
+    else {
+        // need to add to mode
+        m_nomadAppWindow = appwindow;
+        if (m_nomadAppWindow->getMode()->join(mode)) {
+            m_nomadAppWindow->refresh();
+        }
+        else {
+            std::cout << "Unable to join mode" << std::endl;
+        }
+    }
+    return m_nomadAppWindow;
+}
+
 void
 NomadApp::on_activate()
 {
-    auto builder = Gtk::Builder::create();
-    try {
-        #ifdef NOMAD_DEBUG
-        std::cout << "NomadApp::on_activate" << std::endl;
-        #endif
-        builder->add_from_resource(get_resource_base_path() + "/nomad-win.ui");
-        builder->get_widget_derived("NomadWin", m_nomadAppWindow, this);
-        #ifdef NOMAD_DEBUG
-        std::cout << "NomadApp::on_activate nomad win " << m_nomadAppWindow << std::endl;
-        #endif
-        add_window(*m_nomadAppWindow);
-        #ifdef NOMAD_DEBUG
-        std::cout << "NomadApp::on_activate show " << std::endl;
-        #endif
-        m_nomadAppWindow->show();
-    }
-    catch (const Glib::Error &ex) {
-        std::cerr << "Unable to load calc-win: " << ex.what() << std::endl;
-    }
+    // either on_activate is called (no args)
+    auto mode = std::make_shared<EditMode>();
+    NomadWin* imageView = getOrCreateImageWindow(mode); // on instance shoud be sufficent
+    mode->setNomadWin(imageView);
+    imageView->show();
 }
 
+void
+NomadApp::on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint)
+{
+    // or on_open is called (some args)
+    try {
+        if (!files.empty()) {
+            std::vector<Glib::RefPtr<Gio::File>>  picts;
+            for (auto file : files) {
+                picts.push_back(file);
+            }
+            const int32_t front = 0;
+            // this opens a single dialog with paging ...
+            auto mode = std::make_shared<PagingMode>(front, picts);
+            getOrCreateImageWindow(mode);
+        }
+    }
+    catch (const Glib::Error& ex) {
+        std::cerr << "NomadApp::on_open() glib: " << ex.what() << std::endl;
+    }
+    catch (const std::exception& ex) {
+        std::cerr << "NomadApp::on_open() except: " << ex.what() << std::endl;
+    }
+}
 
 void
 NomadApp::on_action_quit()
@@ -150,10 +206,12 @@ NomadApp::on_startup()
         m_builder->add_from_resource(get_resource_base_path() + "/app-menu.ui");
         auto menuObj = m_builder->get_object("menubar");
         auto menuBar = Glib::RefPtr<Gio::Menu>::cast_dynamic(menuObj);
-        if (menuBar)
+        if (menuBar) {
             set_menubar(menuBar);
-        else
+        }
+        else {
             std::cerr << "Cound not find/cast menubar!" << std::endl;
+        }
     }
     catch (const Glib::FileError& ex) {
         std::cerr << "Unable to load menubar: " << ex.what() << std::endl;
@@ -162,15 +220,8 @@ NomadApp::on_startup()
 
 int main(int argc, char** argv)
 {
-    #ifdef NOMAD_DEBUG
-    std::cout << "NomadApp::main" << std::endl;
-    #endif
-
-    setlocale(LC_ALL, "");      // we depend on locale
+    setlocale(LC_ALL, "");      // make locale dependent
     NomadApp app(argc, argv);
 
-    #ifdef NOMAD_DEBUG
-    std::cout << "NomadApp::main run" << std::endl;
-    #endif
     return app.run();
 }

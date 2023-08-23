@@ -1,3 +1,4 @@
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2018 rpf
  *
@@ -18,49 +19,116 @@
 
 #pragma once
 
-class Point {
-private:
-    bool m_draw{false};
-    double m_x{0.0},m_y{0.0};
+class BasePoint
+{
 public:
-    Point(bool _draw, double _x, double _y)
-    : m_draw{_draw}
-    , m_x{_x}
+    BasePoint(double _x, double _y)
+    : m_x{_x}
     , m_y{_y}
     {
     }
-    bool isDraw()
-    {
-        return m_draw;
-    }
+    virtual ~BasePoint() = default;
     double getX()
     {
         return m_x;
+    }
+    void setX(double _x)
+    {
+        m_x = _x;
     }
     double getY()
     {
         return m_y;
     }
+    void setY(double _y)
+    {
+        m_y = _y;
+    }
+protected:
+    double m_x,m_y;
+
 };
 
-class PenlApp;
-
-class PenlAppWindow : public Gtk::ApplicationWindow {
+class DrawPoint
+: public BasePoint
+{
 public:
-    PenlAppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, PenlApp *application);
-    virtual ~PenlAppWindow();
+    DrawPoint(bool _draw, double _x, double _y)
+    : BasePoint(_x, _y)
+    , m_draw{_draw}
+    {
+    }
+    virtual ~DrawPoint() = default;
+    bool isDraw()
+    {
+        return m_draw;
+    }
+protected:
+    bool m_draw;
+};
+
+
+enum class Direction
+{
+    none,
+    Up,
+    Right,
+    Down,
+    Left
+};
+
+class DirPoint
+: public DrawPoint
+{
+public:
+    DirPoint(Direction _dir, bool _draw, double _x, double _y)
+    : DrawPoint(_draw, _x, _y)
+    , m_dir{_dir}
+    {
+    }
+    virtual ~DirPoint() = default;
+    Direction getDirection()
+    {
+        return m_dir;
+    }
+protected:
+    Direction m_dir;
+};
+
+class PenlWindow
+: public Gtk::Window
+{
+public:
+    PenlWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, Gtk::Application* application);
+    virtual ~PenlWindow() = default;
 
     void on_action_preferences();
     void on_action_about();
 protected:
-    //bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr);
-    bool on_motion(GdkEventMotion* motion);
+    bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
+    bool on_motion_notify_event(GdkEventMotion* motion) override;
+    std::list<std::shared_ptr<DrawPoint>> smoothing(
+            std::list<std::shared_ptr<DrawPoint>>& pnts
+            , double factor);
+    std::list<std::shared_ptr<DrawPoint>> thinnig(
+            std::list<std::shared_ptr<DrawPoint>>& pnts
+            , double distance);
+    std::list<std::shared_ptr<DirPoint>> direction(
+            std::list<std::shared_ptr<DrawPoint>>& pnts);
+    void draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_ptr<DrawPoint>>& path, bool points = false);
+    void draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_ptr<DirPoint>>& path);
+
+    static constexpr auto SmoothFactor = 0.75;
+    static constexpr auto OffCoord = -1000.0;
+    static constexpr auto ThinDistance = 20.0;
+    static constexpr auto ArrowLen = 10.0;
+    static constexpr auto ArrowLen2 = ArrowLen / 2.0;
 private:
     Gtk::DrawingArea *m_drawingArea;
     Glib::RefPtr<Gdk::Device> m_pen;
     Glib::RefPtr<Gdk::Device> m_eraser;
     Gtk::Application* m_application;
-    std::list<std::shared_ptr<Point>> m_path;
+    std::list<std::shared_ptr<DrawPoint>> m_path;
     bool m_draw{false};
 };
 
