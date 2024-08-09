@@ -78,11 +78,19 @@ CairoShape::render(
         int outpWidth,
         int outpHeight)
 {
+    cairoCtx->save();
     cairoCtx->set_source_rgb(m_color.get_red_p(), m_color.get_green_p(), m_color.get_blue_p());
     double rwidth{1.0};
     double rheight{1.0};
     int xorg = toRealX(outpWidth);
     int yorg = toRealY(outpHeight);
+    cairoCtx->translate(xorg, yorg);
+    if (m_rotate != 0) {
+        cairoCtx->rotate_degrees(static_cast<double>(m_rotate));
+        //Cairo::Matrix matrix;
+        //matrix.rotate(static_cast<double>(m_rotate) * M_PI / 180.0);
+        //cairoCtx->set_matrix(matrix);
+    }
     for (auto cmd : m_path) {
         //std::cout << "Cmd " << cmd->getCmd() << " x " << cmd->getX() << " y " << cmd->getY() << std::endl;
         if (cmd->getCmd() == L'S') {
@@ -108,19 +116,20 @@ CairoShape::render(
             cairoCtx->set_line_join(Cairo::LineJoin::LINE_JOIN_ROUND);
         }
         else  if (cmd->getCmd() == L'M') {
-            double x = xorg + cmd->getX() * rwidth;
-            double y = yorg + cmd->getY() * rheight;
+            double x = /*xorg + */cmd->getX() * rwidth;
+            double y = /*yorg + */cmd->getY() * rheight;
             //std::cout << "Move " << " x " << x << " y " << y << std::endl;
             cairoCtx->move_to(x, y);
         }
         else  if (cmd->getCmd() == L'L') {
-            double x = xorg + cmd->getX() * rwidth;
-            double y = yorg + cmd->getY() * rheight;
+            double x = /*xorg + */cmd->getX() * rwidth;
+            double y = /*yorg + */cmd->getY() * rheight;
             //std::cout << "Line " << " x " << x << " y " << y << std::endl;
             cairoCtx->line_to(x, y);
         }
     }
     cairoCtx->stroke();
+    cairoCtx->restore();
     return true;
 }
 

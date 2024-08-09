@@ -25,6 +25,8 @@
 #include "NomadWin.hpp"
 #include "EditMode.hpp"
 
+#undef NOMAD_DEBUG
+
 NomadApp::NomadApp(int argc, char **argv)
 : Gtk::Application(argc, argv, "de.pfeifer_syscon.nomad", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
 , m_appSupport{"nomad.conf"}
@@ -43,9 +45,14 @@ NomadApp::createImageWindow(std::shared_ptr<Mode> mode)
     NomadWin* imageView{nullptr};
     auto builder = Gtk::Builder::create();
     try {
-        Gtk::Application* appl = m_appSupport.getApplication();
-        builder->add_from_resource(appl->get_resource_base_path() + "/imageview.ui");
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::createImageWindow appl " << get_resource_base_path() << std::endl;
+        #endif
+        builder->add_from_resource(get_resource_base_path() + "/imageview.ui");
         builder->get_widget_derived("ImageView", imageView, mode, m_appSupport);
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::createImageWindow created" << std::endl;
+        #endif
     }
     catch (const Glib::Error &ex) {
         std::cerr << "Unable to load imageview.ui: " << ex.what() << std::endl;
@@ -60,14 +67,33 @@ NomadApp::getOrCreateImageWindow(std::shared_ptr<Mode> mode)
     // so let's open a new view for each one.
     NomadWin* appwindow = nullptr;
     auto windows = get_windows();
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::getOrCreateImageWindow wins " << windows.size() << std::endl;
+    #endif
     if (windows.size() > 0) {
         appwindow = dynamic_cast<NomadWin*>(windows[0]);
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::getOrCreateImageWindow appwindow " << appwindow << std::endl;
+        #endif
     }
     if (!appwindow) {
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::getOrCreateImageWindow create " << std::endl;
+        #endif
         m_nomadAppWindow = createImageWindow(mode);
         add_window(*m_nomadAppWindow);
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::getOrCreateImageWindow showing " << m_nomadAppWindow << std::endl;
+        #endif
+        //m_nomadAppWindow->show_all(); this crashes (if used w/o parameter, but with parameter no windows is shown) !!!
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::getOrCreateImageWindow shown " << std::endl;
+        #endif
     }
     else {
+        #ifdef NOMAD_DEBUG
+        std::cout << "NomadApp::getOrCreateImageWindow adding " << std::endl;
+        #endif
         // need to add to mode
         m_nomadAppWindow = appwindow;
         if (m_nomadAppWindow->getMode()->join(mode)) {
@@ -83,17 +109,29 @@ NomadApp::getOrCreateImageWindow(std::shared_ptr<Mode> mode)
 void
 NomadApp::on_activate()
 {
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::on_activate" << std::endl;
+    #endif
     // either on_activate is called (no args)
     auto mode = std::make_shared<EditMode>();
     NomadWin* imageView = getOrCreateImageWindow(mode); // on instance shoud be sufficent
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::on_activate created " << imageView << std::endl;
+    #endif
     mode->setNomadWin(imageView);
-    imageView->show();
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::on_activate show_all " << imageView << std::endl;
+    #endif
+    imageView->show_all();
 }
 
 void
 NomadApp::on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint)
 {
     // or on_open is called (some args)
+    #ifdef NOMAD_DEBUG
+    std::cout << "NomadApp::on_open files " << files.size() << std::endl;
+    #endif
     try {
         if (!files.empty()) {
             std::vector<Glib::RefPtr<Gio::File>>  picts;
@@ -101,9 +139,16 @@ NomadApp::on_open(const Gio::Application::type_vec_files& files, const Glib::ust
                 picts.push_back(file);
             }
             const int32_t front = 0;
+            #ifdef NOMAD_DEBUG
+            std::cout << "NomadApp::on_open picts " << picts.size() << std::endl;
+            #endif
             // this opens a single dialog with paging ...
             auto mode = std::make_shared<PagingMode>(front, picts);
-            getOrCreateImageWindow(mode);
+            auto win = getOrCreateImageWindow(mode);
+            #ifdef NOMAD_DEBUG
+            std::cout << "NomadApp::on_open show_all " << std::endl;
+            #endif
+            win->show_all();
         }
     }
     catch (const Glib::Error& ex) {
@@ -198,6 +243,7 @@ NomadApp::on_startup()
     Gtk::Application::on_startup();
 
     add_action("quit", sigc::mem_fun(*this, &NomadApp::on_action_quit));
+    set_accel_for_action("app.quit", "<Ctrl>Q");
     add_action("about", sigc::mem_fun(*this, &NomadApp::on_action_about));
     add_action("help", sigc::mem_fun(*this, &NomadApp::on_action_help));
 

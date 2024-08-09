@@ -46,9 +46,8 @@ public:
     void on_hide() override;
 
 protected:
-    bool ask_text(TextInfo& text);
     Preview* getPreview();
-    virtual Gtk::Menu* build_popup() override;
+    virtual Gtk::Menu* build_popup(int x, int y) override;
 
 private:
     void activate_actions();

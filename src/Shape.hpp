@@ -20,6 +20,8 @@
 
 #include <gtkmm.h>
 
+class Preview;
+
 class Shape {
 public:
     Shape() = default;
@@ -33,6 +35,7 @@ public:
     virtual Gdk::Rectangle getBounds(
             int width,
             int height) = 0;
+    virtual void edit(Preview& preview) = 0;
     void setRelPosition(double posX, double posY);     // relative position 0..1
     int toRealX(int width);
     int toRealY(int height);

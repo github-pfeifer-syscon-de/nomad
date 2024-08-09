@@ -26,7 +26,7 @@
 class NomadWin;
 class Shape;
 class TextInfo;
-
+class Config;
 
 class Preview
 : public ImageArea
@@ -44,22 +44,22 @@ public:
     void addText(const TextInfo& text);
     void create(std::array<int,2> size, const Gdk::Color& background);
     void add(const std::shared_ptr<Shape>& shape);
-
+    void edit(int x, int y);
+    ApplicationSupport& getApplicationSupport();
 protected:
-    //bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) override;
-    //bool on_motion_notify_event(GdkEventMotion* motion_event) override;
-    //bool on_button_press_event(GdkEventButton* event) override;
-    //bool on_button_release_event(GdkEventButton* event) override;
+    bool on_motion_notify_event(GdkEventMotion* motion_event) override;
+    bool on_button_release_event(GdkEventButton* event) override;
+    bool on_button_press_event(GdkEventButton* event) override;
     void render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf) override;
-
+    std::shared_ptr<Shape> hit(double x, double y);
+    std::shared_ptr<Config> getConfig();
 private:
     NomadWin* m_nomadWin;
     std::list<std::shared_ptr<Shape>> m_shapes;
     std::shared_ptr<Shape> m_selected;
-    //double m_relX{0.0};
-    //double m_relY{0.0};
-    //double m_scale{1.0};
+    double m_relX{0.0};
+    double m_relY{0.0};
 };
 
 

@@ -19,8 +19,11 @@
 #pragma once
 
 #include <cairomm/cairomm.h>
+#include <memory>
 
 #include "Shape.hpp"
+
+class Preview;
 
 class TextInfo
 {
@@ -69,9 +72,12 @@ public:
     Gdk::Rectangle getBounds(
             int width,
             int height) override;
+    void edit(Preview& preview) override;
+    static bool ask_text(TextInfo& text, Preview& preview);
 
 private:
     TextInfo m_text;
-    Cairo::TextExtents m_extends;
+    double m_ext_height{0.0};
+    double m_ext_width{0.0};
 };
 

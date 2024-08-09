@@ -32,9 +32,9 @@ Preview::Preview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
 : ImageArea(cobject, builder, appSupport, nomadWin)
 , m_nomadWin{nomadWin}
 {
-//    add_events(Gdk::EventMask::BUTTON_PRESS_MASK
-//            | Gdk::EventMask::BUTTON_RELEASE_MASK
-//            | Gdk::EventMask::BUTTON_MOTION_MASK);
+    add_events(Gdk::EventMask::BUTTON_PRESS_MASK
+            | Gdk::EventMask::BUTTON_RELEASE_MASK
+            | Gdk::EventMask::BUTTON_MOTION_MASK);
 //
 //    std::array<int,2> size {800,600};
 //    Gdk::Color color;
@@ -99,77 +99,90 @@ Preview::loadImage(const Glib::RefPtr<Gio::File>& f)
     queue_draw();
 }
 //
-//bool
-//Preview::on_motion_notify_event(GdkEventMotion* motion_event)
-//{
-//    bool btn1 = (motion_event->state  & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
-//    if (btn1) {
-//        if (m_selected && m_scaled) {
-//            Gdk::Rectangle old = m_selected->getBounds(m_scaled->get_width(), m_scaled->get_height());
-//            double relX = (motion_event->x - m_relX) / static_cast<double>(m_scaled->get_width());
-//            double relY = (motion_event->y - m_relY) / static_cast<double>(m_scaled->get_height());
-//            m_selected->setRelPosition(relX, relY);
-//            Gdk::Rectangle next = m_selected->getBounds(m_scaled->get_width(), m_scaled->get_height());
-//            next.join(old);
-//            queue_draw_area(
-//                    std::max(next.get_x()-20, 0),
-//                    std::max(next.get_y()-20, 0),
-//                    next.get_width() + 40,
-//                    next.get_height() + 40);   // draw only required
-//            return TRUE;
-//        }
-//    }
-//    return FALSE;
-//}
-//
-//bool
-//Preview::on_button_release_event(GdkEventButton* event)
-//{
-////    bool btn1 = (event->button == 1);
-////    if (btn1 && m_selected) {
-////        return TRUE;
-////    }
-//    return FALSE;
-//}
-//
-//bool
-//Preview::on_button_press_event(GdkEventButton* event)
-//{
-//    bool btn1 = (event->button == 1);
-//    if (btn1 && m_scaled) {
-//        m_selected.reset();
-//        double mouseX = event->x;
-//        double mouseY = event->y;
-//        for (auto shape : m_shapes) {
-//            auto r =shape->getBounds(m_scaled->get_width(), m_scaled->get_height());
-//            if (mouseX >= r.get_x()
-//             && mouseX < r.get_x() + r.get_width()
-//             && mouseY >= r.get_y()
-//             && mouseY < r.get_y() + r.get_height()) {
-//                m_relX = (mouseX - r.get_x());
-//                m_relY = (mouseY - r.get_y());
-//                m_selected = shape;
-//                break;
-//            }
-//        }
-//    }
-//    //g_warning("button: %dx%d btn:0x%04x", event->x, event->y, event->button);
-//    return TRUE;
-//}
-//
-//void
-//Preview::setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf)
-//{
-//    m_pixbuf = pixbuf;
-//    m_scaled.reset();
-//    queue_draw();
-//}
-//
-//Glib::RefPtr<Gdk::Pixbuf>
-//Preview::getPixbuf()
-//{
-//    return m_pixbuf;
-//}
+bool
+Preview::on_motion_notify_event(GdkEventMotion* motion_event)
+{
+    bool btn1 = (motion_event->state & Gdk::ModifierType::BUTTON1_MASK) != 0x0;
+    if (btn1 && m_selected && m_scaledImage) {
+        Gdk::Rectangle old = m_selected->getBounds(m_scaledImage->get_width(), m_scaledImage->get_height());
+        double relX = (motion_event->x - m_relX) / static_cast<double>(m_scaledImage->get_width());
+        double relY = (motion_event->y - m_relY) / static_cast<double>(m_scaledImage->get_height());
+        m_selected->setRelPosition(relX, relY);
+        Gdk::Rectangle next = m_selected->getBounds(m_scaledImage->get_width(), m_scaledImage->get_height());
+        next.join(old);
+        queue_draw_area(
+                std::max(next.get_x()-20, 0),
+                std::max(next.get_y()-20, 0),
+                next.get_width() + 40,
+                next.get_height() + 40);   // draw only required
+        return TRUE;
+    }
+    return FALSE;
+}
+
+bool
+Preview::on_button_release_event(GdkEventButton* event)
+{
+    bool btn1 = (event->button == 1);
+    if (btn1 && m_selected) {
+        std::cout << "Preview::on_button_release_event reset " << std::endl;
+        m_selected.reset();
+    }
+    return FALSE;
+}
+
+std::shared_ptr<Shape>
+Preview::hit(double mouseX, double mouseY)
+{
+    std::cout << "Preview::hit "
+              << " mx " << mouseX
+              << " my " << mouseY
+              << std::endl;
+    for (auto shape : m_shapes) {
+        std::cout << "Preview::hit "
+                  << " scaleW " << m_scaledImage->get_width()
+                  << " scaleH " << m_scaledImage->get_height()
+                  << std::endl;
+        auto r = shape->getBounds(m_scaledImage->get_width(), m_scaledImage->get_height());
+        std::cout << "Preview::hit "
+                  << " x " << r.get_x()
+                  << " y " << r.get_y()
+                  << " w " << r.get_width()
+                  << " h " << r.get_height()
+                  << std::endl;
+        if (mouseX >= r.get_x()
+         && mouseX < r.get_x() + r.get_width()
+         && mouseY >= r.get_y()
+         && mouseY < r.get_y() + r.get_height()) {
+            return shape;
+        }
+    }
+    return nullptr;
+}
+
+bool
+Preview::on_button_press_event(GdkEventButton* event)
+{
+    bool btn1 = (event->button == 1);
+    if (btn1 && m_scaledImage) {
+        m_selected.reset();
+        double mouseX = event->x;
+        double mouseY = event->y;
+        auto shape = hit(mouseX, mouseY);
+        if (shape) {
+            auto r = shape->getBounds(m_scaledImage->get_width(), m_scaledImage->get_height());
+            m_relX = (mouseX - r.get_x());
+            m_relY = (mouseY - r.get_y());
+            m_selected = shape;
+            std::cout << "Preview::on_button_press_event selected " << std::endl;
+            return TRUE;
+        }
+        // allow drag otherwise
+    }
+    //g_warning("button: %dx%d btn:0x%04x", event->x, event->y, event->button);
+    return FALSE;   // cooperate with other handlers...
+}
+
 
 void
 Preview::render(const Cairo::RefPtr<Cairo::Context>& cairoCtx,
@@ -201,24 +214,23 @@ Preview::saveImage(const Glib::ustring& file)
     return false;
 }
 
-//bool
-//Preview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
-//{
-//    if (m_pixbuf) {
-//        double wScale = static_cast<double>(get_width()) / static_cast<double>(m_pixbuf->get_width());
-//        double hScale = static_cast<double>(get_height()) / static_cast<double>(m_pixbuf->get_height());
-//        m_scale = std::min(wScale, hScale);
-//        int scaledWidth = static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * m_scale);
-//        int scaledHeight = static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * m_scale);
-//        if (!m_scaled
-//         || (std::abs(scaledWidth - m_scaled->get_width()) > 10
-//         &&  std::abs(scaledHeight - m_scaled->get_height()) > 10)) {   // scale with steps not every pixel
-//            //std::cout << "scaling "
-//            //          << " width " << scaledWidth
-//            //          << " height " << scaledHeight << std::endl;
-//            m_scaled = m_pixbuf->scale_simple(scaledWidth, scaledHeight, Gdk::InterpType::INTERP_BILINEAR);
-//        }
-//        render(cairoCtx, m_scaled);
-//    }
-//    return true;
-//}
+void
+Preview::edit(int x, int y)
+{
+    auto shape = hit(x, y);
+    if (shape) {
+        shape->edit(*this);
+    }
+}
+
+ApplicationSupport&
+Preview::getApplicationSupport()
+{
+    return m_appSupport;
+}
+
+std::shared_ptr<Config>
+Preview::getConfig()
+{
+    return m_nomadWin->getConfig();
+}

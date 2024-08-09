@@ -32,8 +32,15 @@ public:
     virtual ~ScaleableShape() = default;
     void setScale(double scale);
     double getScale();
+    void setRotate(int rotate);
+    int getRotate();
     int toRealWidth(int width);
     int toRealHeight(int height);
+    void edit(Preview& preview) override;
+    static bool askScale(Preview& preview, ScaleableShape* cairoShape);
+protected:
     double m_scale{1.0};
+    int m_rotate{0};
+
 };
 

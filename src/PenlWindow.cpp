@@ -63,17 +63,8 @@ PenlWindow::PenlWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
          &&  keyEvent->keyval <= 'z' )
          || (keyEvent->keyval >= '0'
          &&  keyEvent->keyval <= '9' )) {
-            Glib::ustring name = Glib::ustring::sprintf("%c.path", keyEvent->keyval);
-            std::cout << "saving " << name << std::endl;
-            auto f = Gio::File::create_for_path(name);
-            auto os = f->replace("",false,Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
-            for (auto pnt : m_path) {
-                Glib::ustring seg = Glib::ustring::sprintf("%c %f %f ",
-                    (pnt->isDraw() ? 'L' : 'M'), pnt->getX(), pnt->getY());
-                os->write(seg);
-            }
-            os->write("\n");
-            os->close();
+            //writePathDetail(keyEvent->keyval);
+            writePathDir(keyEvent->keyval);
             m_path.clear();
             m_drawingArea->queue_draw();
         }
@@ -81,6 +72,66 @@ PenlWindow::PenlWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     });
     set_default_size(480, 640);
     show_all_children();
+}
+
+void
+PenlWindow::writePathDetail(guint chr)
+{
+    try {
+        Glib::ustring name = Glib::ustring::sprintf("%c.path", chr);
+        std::cout << "saving " << name << std::endl;
+        auto f = Gio::File::create_for_path(name);
+        auto os = f->replace("",false,Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
+        for (auto pnt : m_path) {
+            Glib::ustring seg = Glib::ustring::sprintf("%c %f %f ",
+                (pnt->isDraw() ? 'L' : 'M'), pnt->getX(), pnt->getY());
+            os->write(seg);
+        }
+        os->write("\n");
+        os->close();
+    }
+    catch (const std::exception& ex) {
+        std::cout << "PenlWindow::writePathDetail error "
+                  << ex.what()
+                  << " writing char " << chr << std::endl;
+    }
+}
+
+void
+PenlWindow::writePathDir(guint chr)
+{
+    try {
+        Glib::ustring name = Glib::ustring::sprintf("%c.dir", chr);
+        std::cout << "saving " << name << std::endl;
+        auto f = Gio::File::create_for_path(name);
+        auto os = f->replace("", false, Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
+        auto dirs = direction(m_path);
+        for (auto dir : dirs) {
+            switch (dir->getDirection()) {
+            case Direction::Up:
+                os->write("U ");
+                break;
+            case Direction::Down:
+                os->write("D ");
+                break;
+            case Direction::Left:
+                os->write("L ");
+                break;
+            case Direction::Right:
+                os->write("R ");
+                break;
+            default:
+                break;
+            }
+        }
+        os->write("\n");
+        os->close();
+    }
+    catch (const std::exception& ex) {
+        std::cout << "PenlWindow::writePathDetail error "
+                  << ex.what()
+                  << " writing char " << chr << std::endl;
+    }
 }
 
 void
@@ -137,6 +188,9 @@ PenlWindow::draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_
         case Direction::none:
             break;
         }
+        cr->move_to(localX + ArrowLen, localY + ArrowLen);
+        auto str = Glib::ustring::sprintf("%.1lf", pnt->getLength());
+        cr->show_text(str);
     }
     cr->stroke();
 }
@@ -150,16 +204,16 @@ PenlWindow::on_draw(const Cairo::RefPtr<Cairo::Context>& cr)
     cr->set_source_rgb(0.5,0.5,0.5);
     cr->set_line_width(1.0);
     draw(cr, m_path);
-    // integrated thinning in event proc so this should net be necessary
-    //auto smooth = smoothing(m_path, Smooth_factor);
-    //cr->set_source_rgb(0.5,0.7,0.5);
-    //draw(cr, smooth);
+    // integrated thinning in event proc so this should not be necessary
+    auto smooth = smoothing(m_path, SmoothFactor);
+    cr->set_source_rgb(0.5,0.7,0.5);
+    draw(cr, smooth);
     //std::cout << "smooth "  << smooth.size() << std::endl;
     //auto thin = thinnig(smooth, Thin_distance);
     //cr->set_source_rgb(0.5,0.5,0.7);
     //draw(cr, thin, true);
     //std::cout << "thin "  << thin.size() << std::endl;
-    auto dirs = direction(m_path);
+    auto dirs = direction(smooth);
     cr->set_source_rgb(0.7,0.5,0.5);
     draw(cr, dirs);
     std::cout << "dir "  << dirs.size() << std::endl;
@@ -170,9 +224,14 @@ std::list<std::shared_ptr<DirPoint>>
 PenlWindow::direction(
         std::list<std::shared_ptr<DrawPoint>>& pnts)
 {
+    MinMax minMaxAll;
+    for (auto pnt : pnts) {
+        minMaxAll.add(pnt);
+    }
     std::list<std::shared_ptr<DirPoint>> ret;
     double sumX = 0.0;
     double sumY = 0.0;
+    MinMax minMax;
     int count = 0;
     double lastX = OffCoord;
     double lastY = OffCoord;
@@ -193,19 +252,29 @@ PenlWindow::direction(
         sumX += pnt->getX();
         sumY += pnt->getY();
         ++count;
+        minMax.add(pnt);
         if ((next != Direction::none
          && next != dir) || !pnt->isDraw()) {
             if (!ret.empty()) {
                 auto last = ret.back();
                 last->setX(sumX / static_cast<double>(count));
-                last->setY(sumY  / static_cast<double>(count));
+                last->setY(sumY / static_cast<double>(count));
             }
-            auto nextPnt = std::make_shared<DirPoint>(next, pnt->isDraw(), pnt->getX(), pnt->getY());
+            // reduce the relative len by overall length by quarter
+            double d4 = minMaxAll.dist() / 4.0;
+            double l = std::min(std::floor(minMax.dist() / d4), 3.0);
+            std::cout << " count " << count
+                      << " d4 " << d4
+                      << " ld " << minMax.dist()
+                      << " l " << l
+                      << std::endl;
+            auto nextPnt = std::make_shared<DirPoint>(next, pnt->isDraw(), pnt->getX(), pnt->getY(), l);
             ret.push_back(std::move(nextPnt));
             sumX = 0.0;
             sumY = 0.0;
             count = 0;
             dir = next;
+            minMax.reset();
         }
         if (!pnt->isDraw()) {
             lastX = OffCoord;
@@ -221,6 +290,80 @@ PenlWindow::direction(
         auto last = ret.back();
         last->setX(sumX / static_cast<double>(count));
         last->setY(sumY  / static_cast<double>(count));
+    }
+
+    return ret;
+}
+
+std::list<std::shared_ptr<DirPoint>>
+PenlWindow::direction2(
+        std::list<std::shared_ptr<DrawPoint>>& pnts)
+{
+    MinMax minMaxAll;
+    for (auto pnt : pnts) {
+        minMaxAll.add(pnt);
+    }
+    std::list<std::shared_ptr<DirPoint>> ret;
+    double sumX = 0.0;
+    double sumY = 0.0;
+    MinMax minMax;
+    int count = 0;
+    double lastX = OffCoord;
+    double lastY = OffCoord;
+    Direction dir{Direction::none};
+    for (auto pnt : pnts) {
+        double dX = lastX != OffCoord ? lastX - pnt->getX() : 0.0;
+        double dY = lastY != OffCoord ? lastY - pnt->getY() : 0.0;
+        Direction next{Direction::none};
+        if (dX != 0.0||dY != 0.0) {
+            if (std::abs(dX) > std::abs(dY)) {
+                next = dX < 0.0 ? Direction::Left : Direction::Right;
+            }
+            else {
+                next = dY < 0.0 ? Direction::Up : Direction::Down;
+            }
+        }
+        sumX += pnt->getX();
+        sumY += pnt->getY();
+        ++count;
+        minMax.add(pnt);
+        if ((next != Direction::none
+         && next != dir) || !pnt->isDraw()) {
+            if (!ret.empty()) {
+                auto last = ret.back();
+                last->setX(sumX / static_cast<double>(count));
+                last->setY(sumY / static_cast<double>(count));
+            }
+            // reduce the relative len by overall length by quarter
+            double d4 = minMaxAll.dist() / 4.0;
+            double l = std::min(std::floor(minMax.dist() / d4), 3.0);
+            std::cout << " count " << count
+                      << " d4 " << d4
+                      << " ld " << minMax.dist()
+                      << " l " << l
+                      << std::endl;
+            auto nextPnt = std::make_shared<DirPoint>(next, pnt->isDraw(), pnt->getX(), pnt->getY(), l);
+            ret.push_back(std::move(nextPnt));
+            sumX = 0.0;
+            sumY = 0.0;
+            count = 0;
+            dir = next;
+            minMax.reset();
+        }
+        if (!pnt->isDraw()) {
+            lastX = OffCoord;
+            lastY = OffCoord;
+            dir = Direction::none;
+        }
+        else {
+            lastX = pnt->getX();
+            lastY = pnt->getY();
+        }
+    }
+    if (!ret.empty()) {
+        auto last = ret.back();
+        last->setX(sumX / static_cast<double>(count));
+        last->setY(sumY / static_cast<double>(count));
     }
 
     return ret;
@@ -260,7 +403,6 @@ PenlWindow::thinnig(
     return ret;
 }
 
-
 std::list<std::shared_ptr<DrawPoint>>
 PenlWindow::smoothing(
         std::list<std::shared_ptr<DrawPoint>>& pnts
@@ -269,18 +411,24 @@ PenlWindow::smoothing(
     double lastX = OffCoord;
     double lastY = OffCoord;
     std::list<std::shared_ptr<DrawPoint>> ret;
+    double factorInv = 1.0 - factor;
     for (auto pnt : pnts) {
-        double nextX = pnt->getX();
-        double nextY = pnt->getY();
-        if (lastX != OffCoord
+        double nextX;
+        double nextY;
+        if (pnt->isDraw()   // only average draw points
+         && lastX != OffCoord
          && lastY != OffCoord) {
-            nextX = lastX * factor + pnt->getX() * (1.0 - factor);
-            nextY = lastY * factor + pnt->getY() * (1.0 - factor);
+            nextX = lastX * factor + pnt->getX() * factorInv;
+            nextY = lastY * factor + pnt->getY() * factorInv;
+        }
+        else {
+            nextX = pnt->getX();
+            nextY = pnt->getY();
         }
         auto next = std::make_shared<DrawPoint>(pnt->isDraw(), nextX, nextY);
         ret.push_back(std::move(next));
-        lastX = pnt->isDraw() ? nextX : OffCoord;
-        lastY = pnt->isDraw() ? nextY : OffCoord;
+        lastX = nextX;
+        lastY = nextY;
     }
     return ret;
 }
@@ -312,15 +460,16 @@ PenlWindow::on_motion_notify_event(GdkEventMotion* motion)
                         m_draw = true;
                     }
                     else {
-                        double lx{OffCoord};
-                        double ly{OffCoord};
                         if (!m_path.empty()) {
-                            lx = m_path.back()->getX();
-                            ly = m_path.back()->getY();
+                            double lx = m_path.back()->getX();
+                            double ly = m_path.back()->getY();
+                            double dx = lx - localX;
+                            double dy = ly - localY;
+                            if (dx * dx + dy * dy > ThinDistance_2) {   // avoid recording too many points, so this will already be thinned
+                                pnt = std::make_shared<DrawPoint>(m_draw, localX, localY);
+                            }
                         }
-                        double dx = lx - localX;
-                        double dy = ly - localY;
-                        if (dx * dx + dy * dy > ThinDistance) {   // avoid recording too many points, so this is already thinned
+                        else {
                             pnt = std::make_shared<DrawPoint>(m_draw, localX, localY);
                         }
                     }

@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <memory>
+
 class BasePoint
 {
 public:
@@ -28,7 +31,7 @@ public:
     {
     }
     virtual ~BasePoint() = default;
-    double getX()
+    double getX() const
     {
         return m_x;
     }
@@ -36,7 +39,7 @@ public:
     {
         m_x = _x;
     }
-    double getY()
+    double getY() const
     {
         return m_y;
     }
@@ -48,6 +51,50 @@ protected:
     double m_x,m_y;
 
 };
+
+class MinMax
+{
+public:
+    MinMax()
+    {
+        reset();
+    }
+    virtual ~MinMax() = default;
+    void add(const std::shared_ptr<BasePoint>& p)
+    {
+        if (p->getX() < xmin) {
+            xmin = p->getX();
+        }
+        if (p->getX() > xmax) {
+            xmax = p->getX();
+        }
+        if (p->getY() < ymin) {
+            ymin = p->getY();
+        }
+        if (p->getY() > ymax) {
+            ymax = p->getY();
+        }
+    }
+    double dist()
+    {
+        double dx = xmax - xmin;
+        double dy = ymax - ymin;
+        return std::sqrt(dx * dx + dy * dy);
+    }
+    void reset()
+    {
+        xmin = std::numeric_limits<double>::max();
+        xmax = std::numeric_limits<double>::min();
+        ymin = std::numeric_limits<double>::max();
+        ymax = std::numeric_limits<double>::min();
+    }
+protected:
+    double xmin;
+    double xmax;
+    double ymin;
+    double ymax;
+};
+
 
 class DrawPoint
 : public BasePoint
@@ -81,9 +128,10 @@ class DirPoint
 : public DrawPoint
 {
 public:
-    DirPoint(Direction _dir, bool _draw, double _x, double _y)
+    DirPoint(Direction _dir, bool _draw, double _x, double _y, double _l)
     : DrawPoint(_draw, _x, _y)
     , m_dir{_dir}
+    , m_l{_l}
     {
     }
     virtual ~DirPoint() = default;
@@ -91,8 +139,13 @@ public:
     {
         return m_dir;
     }
+    double getLength()
+    {
+        return m_l;
+    }
 protected:
     Direction m_dir;
+    double m_l;
 };
 
 class PenlWindow
@@ -115,12 +168,17 @@ protected:
             , double distance);
     std::list<std::shared_ptr<DirPoint>> direction(
             std::list<std::shared_ptr<DrawPoint>>& pnts);
+    std::list<std::shared_ptr<DirPoint>> direction2(
+            std::list<std::shared_ptr<DrawPoint>>& pnts);
     void draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_ptr<DrawPoint>>& path, bool points = false);
     void draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_ptr<DirPoint>>& path);
+    void writePathDetail(guint chr);
+    void writePathDir(guint chr);
 
     static constexpr auto SmoothFactor = 0.75;
-    static constexpr auto OffCoord = -1000.0;
-    static constexpr auto ThinDistance = 20.0;
+    static constexpr auto OffCoord = -10000.0;
+    static constexpr auto ThinDistance = 7.0;
+    static constexpr auto ThinDistance_2 = ThinDistance * ThinDistance;
     static constexpr auto ArrowLen = 10.0;
     static constexpr auto ArrowLen2 = ArrowLen / 2.0;
 private:

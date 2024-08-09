@@ -34,6 +34,8 @@
 #endif
 #include "PenlWindow.hpp"
 
+#undef NOMADWIN_DEBUG
+
 NomadWin::NomadWin(
         BaseObjectType* cobject
         , const Glib::RefPtr<Gtk::Builder>& builder
@@ -48,11 +50,13 @@ NomadWin::NomadWin(
     // use our instance of imageview
     Preview* preview;
     builder->get_widget_derived("imageDraw", preview, m_appSupport, this);
+    #ifdef NOMADWIN_DEBUG
+    std::cout << "NomadWin::createImageWindow preview " << preview << std::endl;
+    #endif
     m_content = preview;
 
     activate_actions();
-
-    show_all_children();
+    //show_all_children();  prefere show_all from app
 }
 
 Preview*
@@ -66,45 +70,6 @@ NomadWin::getPreview()
     return preview;
 }
 
-bool
-NomadWin::ask_text(TextInfo& textInfo)
-{
-	bool ret = false;
-	auto builder = Gtk::Builder::create();
-    try {
-        auto config = getConfig();
-        builder->add_from_resource(m_appSupport.getApplication()->get_resource_base_path() + "/text-dlg.ui");
-		Gtk::Dialog* dlg;
-        builder->get_widget("dlg", dlg);
-		Gtk::Entry* text;
-        builder->get_widget("text", text);
-        text->set_text(textInfo.getText());
-        Gtk::ColorButton* color;
-        builder->get_widget("color", color);
-        color->set_color(config->getForegroundColor());
-        Gtk::FontButton *font;
-        builder->get_widget("font", font);
-        font->set_font_name(config->getTextFont());
-	    int result = dlg->run();
-		switch (result) {
-			case Gtk::RESPONSE_OK:
-				textInfo.setText(text->get_text());
-                textInfo.setColor(color->get_color());
-                textInfo.setFont(font->get_font_name());
-                config->setForegroundColor(color->get_color());
-                config->setTextFont(font->get_font_name());
-                ret = true;
-				break;
-			default:
-				break;
-		}
-		delete dlg;
-    }
-    catch (const Glib::Error &ex) {
-        m_appSupport.showError(Glib::ustring::sprintf("Unable to load name-dlg: %s",  ex.what()));
-    }
-	return ret;
-}
 
 bool
 NomadWin::ask_size(std::array<int,2>& size, Gdk::Color& background)
@@ -172,10 +137,10 @@ NomadWin::timeout()
 
 
 Gtk::Menu*
-NomadWin::build_popup()
+NomadWin::build_popup(int x, int y)
 {
-    std::cout << "NomadWin::build_popup" << std::endl;
-    Gtk::Menu* menu = ImageView::build_popup();
+    //std::cout << "NomadWin::build_popup" << std::endl;
+    Gtk::Menu* menu = ImageView::build_popup(x, y);
     auto mni_text = Gtk::make_managed<Gtk::MenuItem>("_Text", true);
     //auto theme = Gtk::IconTheme::get_default();
     //auto info = theme->lookup_icon("gtk-edit", Gtk::ICON_SIZE_BUTTON);    // new name "GTK_STOCK_EDIT"? not understood
@@ -185,9 +150,13 @@ NomadWin::build_popup()
     //}
     //btn_text->set_image_from_icon_name("gtk-edit");
     mni_text->signal_activate().connect([this] () {
+        Preview* preview = getPreview();
         TextInfo text;
-        if (ask_text(text)) {
-            Preview* preview = getPreview();
+        text.setColor(m_config->getForegroundColor());
+        text.setFont(m_config->getTextFont());
+        if (TextShape::ask_text(text, *preview)) {
+            m_config->setForegroundColor(text.getColor());
+            m_config->setTextFont(text.getFont());
             preview->addText(text);
         }
     });
@@ -207,18 +176,27 @@ NomadWin::build_popup()
         try {
             ImageFileChooser file_chooser(*this, false, {"svg"});
             if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
-                //std::string home = Glib::get_home_dir();
-                //Glib::ustring fullPath = Glib::canonicalize_filename("Downloads/arrow-up-svgrepo-com.svg", home.c_str());
-                //Glib::filename_from_utf8(fullPath);
                 Preview* preview = getPreview();
                 preview->loadSvg(file_chooser.get_file());
             }
         }
         catch (const Glib::Error &ex) {
-            m_appSupport.showError(Glib::ustring::sprintf("Unable load file %s", ex.what()));
+            m_appSupport.showError(Glib::ustring::sprintf("Unable load svg file %s", ex.what()));
         }
     });
     menu->append(*mni_load);
+    auto mni_edit = Gtk::make_managed<Gtk::MenuItem>("_Edit", true);
+    mni_edit->signal_activate().connect([this,x,y] () {
+        try {
+            auto preview = getPreview();
+            preview->edit(x, y);
+        }
+        catch (const Glib::Error &ex) {
+            m_appSupport.showError(Glib::ustring::sprintf("Unable edit %s", ex.what()));
+        }
+    });
+    menu->append(*mni_edit);
+
     return menu;
 }
 

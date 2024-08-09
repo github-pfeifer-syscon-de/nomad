@@ -19,6 +19,7 @@
 #include <iostream>
 
 #include "SvgShape.hpp"
+#include "Preview.hpp"
 
 SvgShape::SvgShape()
 : m_handle{nullptr}
