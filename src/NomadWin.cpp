@@ -203,9 +203,6 @@ NomadWin::build_popup(int x, int y)
 void
 NomadWin::on_hide()
 {
-    if (m_config) {
-        m_config->save_config();
-    }
     ImageView::on_hide();   // this will save config
 }
 
@@ -359,7 +356,7 @@ std::shared_ptr<Config>
 NomadWin::getConfig()
 {
     if (!m_config) {
-       m_config = std::make_shared<Config>(m_appSupport.getConfig());
+       m_config = std::dynamic_pointer_cast<Config>(m_appSupport.getConfig());
     }
     return m_config;
 }

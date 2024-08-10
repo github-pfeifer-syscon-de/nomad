@@ -18,25 +18,28 @@
 
 #pragma once
 
+#include "KeyConfig.hpp"
+
 class Config
 : public Glib::Object
+, public KeyConfig
 {
 public:
-    Config(Glib::KeyFile* m_config);
+    Config(const char* configName);
     explicit Config(const Config& cnf) = delete;
     virtual ~Config() = default;
 
     int getDelay() {
-        return m_delaySec;
+        return getInteger(MAIN_GRP, DELAY_CONF, DEFAULT_DELAY);
     }
     void setDelay(int delay) {
-        m_delaySec = delay;
+        setInteger(MAIN_GRP, DELAY_CONF, delay);
     }
     bool isCaptureWindow() {
-        return m_captureWindow;
+        return getBoolean(MAIN_GRP, CAPTURE_WINDOW_CONF, true);
     }
     void setCaptureWindow(bool captureWindow) {
-        m_captureWindow = captureWindow;
+        setBoolean(MAIN_GRP, CAPTURE_WINDOW_CONF, captureWindow);
     }
     Gdk::Color getBackgroundColor() {
         return m_background;
@@ -56,17 +59,15 @@ public:
     void setTextFont(const Glib::ustring& textFont) {
         m_textFont = textFont;
     }
-    void save_config();
+    void saveConfig() override;
+    void loadConfig() override;
 protected:
-    void read_config();
     static constexpr auto DEFAULT_DELAY{5};
 private:
-    int m_delaySec{DEFAULT_DELAY};
-    bool m_captureWindow{true};
+
     Gdk::Color m_background;
     Gdk::Color m_foreground;
     Glib::ustring m_textFont{"Sans 10"};
-    Glib::KeyFile* m_config;
 
     static constexpr auto MAIN_GRP{"main"};
     static constexpr auto DELAY_CONF{"delaySec"};

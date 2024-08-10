@@ -27,6 +27,7 @@
 template<class T,typename G>
 class ImageView;
 class NomadWin;
+class Config;
 /*
  * get the application up and running
  *   about and help dialog
@@ -52,6 +53,7 @@ protected:
 
 private:
     NomadWin* m_nomadAppWindow{nullptr};
+    std::shared_ptr<Config> m_config;
     ApplicationSupport m_appSupport;
     Glib::ustring m_exec;
     Glib::RefPtr<Gtk::Builder> m_builder;

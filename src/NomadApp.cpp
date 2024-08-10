@@ -24,12 +24,14 @@
 #include "NomadApp.hpp"
 #include "NomadWin.hpp"
 #include "EditMode.hpp"
+#include "Config.hpp"
 
 #undef NOMAD_DEBUG
 
 NomadApp::NomadApp(int argc, char **argv)
 : Gtk::Application(argc, argv, "de.pfeifer_syscon.nomad", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
-, m_appSupport{"nomad.conf"}
+, m_config{std::make_shared<Config>("nomad.conf")}
+, m_appSupport{m_config}
 , m_exec{argv[0]}
 {
     m_appSupport.setApplication(this);

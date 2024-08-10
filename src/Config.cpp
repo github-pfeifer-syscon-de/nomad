@@ -21,54 +21,40 @@
 
 #include "Config.hpp"
 
-Config::Config(Glib::KeyFile* config)
+Config::Config(const char* configName)
 : Glib::ObjectBase(typeid (Config))
-, m_config{config}
+, KeyConfig{configName}
 {
-    read_config();
 }
 
 void
-Config::read_config()
+Config::loadConfig()
 {
-    if (m_config->has_group(MAIN_GRP)
-      && m_config->has_key(MAIN_GRP, DELAY_CONF)) {
-        m_delaySec = m_config->get_integer(MAIN_GRP, DELAY_CONF);
-    }
-    if (m_config->has_group(MAIN_GRP)
-     && m_config->has_key(MAIN_GRP, CAPTURE_WINDOW_CONF)) {
-        m_captureWindow = m_config->get_boolean(MAIN_GRP, CAPTURE_WINDOW_CONF);
-    }
-    if (m_config->has_group(MAIN_GRP)
-     && m_config->has_key(MAIN_GRP, BACKGROUNDCOLOR_CONF)) {
-        auto color = m_config->get_string(MAIN_GRP, BACKGROUNDCOLOR_CONF);
+    KeyConfig::loadConfig();
+    if (hasKey(MAIN_GRP, BACKGROUNDCOLOR_CONF)) {
+        auto color = getString(MAIN_GRP, BACKGROUNDCOLOR_CONF);
         m_background.set(color);
     }
     else {
         m_background.set("#000");
     }
-    if (m_config->has_group(MAIN_GRP)
-     && m_config->has_key(MAIN_GRP, FOREGROUNDCOLOR_CONF)) {
-        auto color = m_config->get_string(MAIN_GRP, FOREGROUNDCOLOR_CONF);
+    if (hasKey(MAIN_GRP, FOREGROUNDCOLOR_CONF)) {
+        auto color = getString(MAIN_GRP, FOREGROUNDCOLOR_CONF);
         m_foreground.set(color);
     }
     else {
         m_foreground.set("#fff");
     }
-    if (m_config->has_group(MAIN_GRP)
-     && m_config->has_key(MAIN_GRP, TEXTFONT_CONF)) {
-        m_textFont = m_config->get_string(MAIN_GRP, TEXTFONT_CONF);
+    if (hasKey(MAIN_GRP, TEXTFONT_CONF)) {
+        m_textFont = getString(MAIN_GRP, TEXTFONT_CONF);
     }
 }
 
 void
-Config::save_config()
+Config::saveConfig()
 {
-    if (m_config) {
-        m_config->set_integer(MAIN_GRP, DELAY_CONF, m_delaySec);
-        m_config->set_boolean(MAIN_GRP, CAPTURE_WINDOW_CONF, m_captureWindow);
-        m_config->set_string(MAIN_GRP, BACKGROUNDCOLOR_CONF, m_background.to_string());
-        m_config->set_string(MAIN_GRP, FOREGROUNDCOLOR_CONF, m_foreground.to_string());
-        m_config->set_string(MAIN_GRP, TEXTFONT_CONF, m_textFont);
-    }
+    setString(MAIN_GRP, BACKGROUNDCOLOR_CONF, m_background.to_string());
+    setString(MAIN_GRP, FOREGROUNDCOLOR_CONF, m_foreground.to_string());
+    setString(MAIN_GRP, TEXTFONT_CONF, m_textFont);
+    KeyConfig::saveConfig();
 }
