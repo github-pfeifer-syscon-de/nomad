@@ -234,7 +234,7 @@ NomadWin::activate_actions()
         [this] (const Glib::VariantBase& value)  {
             auto builder = Gtk::Builder::create();
             try {
-                builder->add_from_resource(m_application->get_resource_base_path() + "/scan-dlg.ui");
+                builder->add_from_resource(m_appSupport.getApplication()->get_resource_base_path() + "/scan-dlg.ui");
                 ScanDlg* dialog = nullptr;
                 builder->get_widget_derived("scan-dlg", dialog, this);
                 dialog->show_all();
