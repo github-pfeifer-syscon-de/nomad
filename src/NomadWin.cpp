@@ -200,7 +200,8 @@ NomadWin::build_popup(int x, int y)
     return menu;
 }
 
-void NomadWin::on_hide()
+void
+NomadWin::on_hide()
 {
     if (m_config) {
         m_config->save_config();
@@ -354,7 +355,8 @@ NomadWin::activate_actions()
 
 }
 
-std::shared_ptr<Config> NomadWin::getConfig()
+std::shared_ptr<Config>
+NomadWin::getConfig()
 {
     if (!m_config) {
        m_config = std::make_shared<Config>(m_appSupport.getConfig());
