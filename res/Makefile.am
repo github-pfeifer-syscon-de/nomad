@@ -16,20 +16,17 @@ $(RESOURCE_C): $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES)
 
 # The desktop files
 desktopdir = $(datadir)/applications
-desktop_in_files=nomad.desktop.in
-desktop_DATA=$(desktop_in_files:.desktop.in=.desktop)
+desktop_DATA=nomad.desktop
 
 # application icon
-appicondir = $(datadir)/icons/hicolor/64x64/apps
-appicon_DATA = nomad.png
-appdir_icon=$(appicondir)/$(appicon_DATA)
+icon_basename=nomad
+pixmapdir=$(datadir)/icons/hicolor/64x64/apps
+pixmap_DATA=$(icon_basename).png
+appicondir=$(datadir)/icons/hicolor/scalable/apps
+appicon_DATA=$(icon_basename).svg
 
 # include source for build
-EXTRA_DIST = $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES) $(desktop_in_files) $(appicon_DATA)
+EXTRA_DIST = $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES) $(desktop_DATA) $(pixmap_DATA) $(appicon_DATA)
 
 clean-local:
 	-rm -rf $(RESOURCE_C)
-	-rm -rf $(desktop_DATA)
-
-$(desktop_DATA): $(desktop_in_files)
-	@regex_cmd@ -e "s,\@APP_ICON\@,$(appdir_icon),g" $? > $@

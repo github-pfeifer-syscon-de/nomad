@@ -17,10 +17,9 @@
  */
 
 #include <iostream>
-#include <locale>
+#include <charconv>
 
 #include "CairoShape.hpp"
-#include "LocaleContext.hpp"
 #include "StringUtils.hpp"
 
 CairoShape::CairoShape(const Glib::ustring& path)
@@ -32,7 +31,6 @@ CairoShape::CairoShape(const Glib::ustring& path)
     std::vector<Glib::ustring> parts;
     StringUtils::split(npath, ' ', parts);
     std::shared_ptr<DrawCommand> command;
-    LocaleContext ctx(LC_NUMERIC);
     for (auto part : parts) {
         auto c = part[0];
         if (g_unichar_isalpha(c)) {
@@ -42,14 +40,21 @@ CairoShape::CairoShape(const Glib::ustring& path)
             command = std::make_shared<DrawCommand>(c);
         }
         else if (g_unichar_isdigit(c)) {
-            double val = ctx.parseDouble(LocaleContext::en_US, part);
-            if (command) {
-                if (command->isXSet()) {
-                    command->setY(val);
+            double val{0.0};
+            auto [ptr, ec] = std::from_chars(part.c_str(), part.c_str() + part.size(), val);
+            if (ec == std::errc()) {
+                // this went well
+                if (command) {
+                    if (command->isXSet()) {
+                        command->setY(val);
+                    }
+                    else {
+                        command->setX(val);
+                    }
                 }
-                else {
-                    command->setX(val);
-                }
+            }
+            else {
+                // throw exception ?
             }
         }
     }
