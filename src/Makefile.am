@@ -77,15 +77,3 @@ nomad_SOURCES += \
 	WiaScan.hpp \
 	WiaScan.cpp
 endif
-
-if HAVE_PDF
-nomad_SOURCES += \
-	PdfPage.hpp \
-	PdfPage.cpp \
-	PdfFont.hpp \
-	PdfFont.cpp \
-	PdfImage.hpp \
-	PdfImage.cpp \
-	PdfExport.hpp \
-	PdfExport.cpp
-endif

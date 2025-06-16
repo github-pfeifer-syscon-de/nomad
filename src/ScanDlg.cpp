@@ -21,6 +21,12 @@
 #include <vector>
 #include <StringUtils.hpp>
 #include <unistd.h>
+#ifdef USE_PDF
+#include <PdfExport.hpp>
+#include <PdfPage.hpp>
+#include <PdfFont.hpp>
+#include <PdfImage.hpp>
+#endif
 
 namespace std
 {
@@ -32,12 +38,6 @@ namespace std
 #include "WiaScan.hpp"
 #include "WiaProperty.hpp"
 #include "NomadWin.hpp"
-#ifdef USE_PDF
-#include "PdfExport.hpp"
-#include "PdfPage.hpp"
-#include "PdfFont.hpp"
-#include "PdfImage.hpp"
-#endif
 
 ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, NomadWin* nomadWin)
 : Gtk::Dialog(cobject)
@@ -181,8 +181,8 @@ ScanDlg::saveImage(const Glib::ustring& file)
 void
 ScanDlg::exportPdf(const Glib::ustring& file)
 {
-    auto pdfExport = std::make_shared<PdfExport>();
-    auto helv = pdfExport->createFont("Helvetica");
+    auto pdfExport = std::make_shared<psc::pdf::PdfExport>();
+    auto helv = pdfExport->createFont(psc::pdf::PdfExport::BASE14FONT_HELVECTICA);
     //page->drawText("PngDemo", 220, page->getHeight() - 70);
     //page->setFont(helv, 12);
 
@@ -191,9 +191,9 @@ ScanDlg::exportPdf(const Glib::ustring& file)
     //close(h);
     //savePng(tempName);
     for (auto pngImg : m_pages) {
-        auto page = std::make_shared<PdfPage>(pdfExport);
+        auto page = std::make_shared<psc::pdf::PdfPage>(pdfExport);
         page->setFont(helv, 12);
-        auto img = std::make_shared<PdfImage>(pdfExport);
+        auto img = std::make_shared<psc::pdf::PdfImage>(pdfExport);
         img->loadPng(pngImg->get_path());
         std::cout << " width " << img->getWidth()
                   << " height " << img->getHeight()

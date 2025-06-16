@@ -32,7 +32,7 @@ AC_SEARCH_LIBS([HPDF_Page_BeginText], [hpdf], [USE_LIBHARU="true"])
 
 PKG_CHECK_MODULES([RSVG], [librsvg-2.0])
 
-PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.3.3])
+PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.4.4])
 
 PKG_CHECK_MODULES(JSONGLIB1, [json-glib-1.0])
 
