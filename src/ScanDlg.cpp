@@ -191,7 +191,7 @@ ScanDlg::exportPdf(const Glib::ustring& file)
     //close(h);
     //savePng(tempName);
     for (auto pngImg : m_pages) {
-        auto page = std::make_shared<psc::pdf::PdfPage>(pdfExport);
+        auto page = pdfExport->createPage();
         page->setFont(helv, 12);
         auto img = std::make_shared<psc::pdf::PdfImage>(pdfExport);
         img->loadPng(pngImg->get_path());
