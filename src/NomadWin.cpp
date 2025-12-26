@@ -33,6 +33,8 @@
 #include "X11Capture.hpp"
 #endif
 #include "PenlWindow.hpp"
+#include "ImageReader.hpp"
+#include "config.h"
 
 #undef NOMADWIN_DEBUG
 
@@ -197,6 +199,18 @@ NomadWin::build_popup(int x, int y)
     });
     menu->append(*mni_edit);
 
+    auto mni_scale = Gtk::make_managed<Gtk::MenuItem>("_Scale", true);
+    mni_scale->signal_activate().connect([this,x,y] () {
+        try {
+            auto preview = getPreview();
+            preview->scale(x, y);
+        }
+        catch (const Glib::Error &ex) {
+            m_appSupport.showError(Glib::ustring::sprintf("Unable scale %s", ex.what()));
+        }
+    });
+    menu->append(*mni_scale);
+
     return menu;
 }
 
@@ -315,11 +329,15 @@ NomadWin::activate_actions()
     load_action->signal_activate().connect (
         [this] (const Glib::VariantBase& value)  {
             try {
-                ImageFileChooser file_chooser(*this, false, {"png", "jpg"});
+                Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
+                auto imageReaders = ImageReaders::createDefault();
+                imageReaders->prepareFilter(filter);
+                ImageFileChooser file_chooser(*this, false, filter);
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     try {
+                        auto imageFile = file_chooser.get_file();
                         Preview* preview = getPreview();
-                        preview->loadImage(file_chooser.get_file());
+                        preview->loadImage(imageFile);
                     }
                     catch (const Glib::Error &ex) {
                         m_appSupport.showError(Glib::ustring::sprintf("Error %s loading %s", ex.what(), file_chooser.get_filename()));

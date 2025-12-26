@@ -20,11 +20,13 @@
 #include <iostream>
 #include <istream>
 #include <DisplayImage.hpp>
+#include <StringUtils.hpp>
 
 #include "Preview.hpp"
 #include "SvgShape.hpp"
 #include "NomadWin.hpp"
 #include "TextShape.hpp"
+#include "ImageReader.hpp"
 
 
 
@@ -90,10 +92,17 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
 
 void
 Preview::loadImage(const Glib::RefPtr<Gio::File>& f)
-{
-    auto pixbuf = Gdk::Pixbuf::create_from_file(f->get_path());
+{    
+    auto imageReaders = ImageReaders::createDefault();
+    Glib::RefPtr<Gdk::Pixbuf> pixbuf = imageReaders->read(f);
     auto displayImage = DisplayImage::create(pixbuf);
     m_nomadWin->setDisplayImage(displayImage);
+    refresh();
+}
+
+void
+Preview::refresh()
+{
     m_shapes.clear();
     m_selected.reset();
     queue_draw();
@@ -223,6 +232,43 @@ Preview::edit(int x, int y)
     }
 }
 
+void
+Preview::scale(int x, int y)
+{
+    double scale{1.0};
+    int rotate{};
+    Gdk::RGBA colorVal{};
+    auto pixbuf = m_displayImage->getPixbuf();
+    if (askScale(scale, rotate, colorVal, pixbuf->get_width(), pixbuf->get_height())) {
+        bool changed{false};
+        if (scale != 1.0) {
+            double width = pixbuf->get_width() * scale;
+            double height = pixbuf->get_height() * scale;
+            pixbuf = pixbuf->scale_simple(
+                          static_cast<int>(width)
+                        , static_cast<int>(height)
+                        , Gdk::INTERP_BILINEAR);
+            changed = true;
+        }
+        auto rotateKey = rotate >= 270
+                ? Gdk::PIXBUF_ROTATE_COUNTERCLOCKWISE
+                : rotate >= 180
+                    ? Gdk::PIXBUF_ROTATE_UPSIDEDOWN
+                    : rotate >= 90
+                        ? Gdk::PIXBUF_ROTATE_CLOCKWISE
+                        : Gdk::PIXBUF_ROTATE_NONE;
+        if (rotateKey != Gdk::PIXBUF_ROTATE_NONE) {
+            pixbuf = pixbuf->rotate_simple(rotateKey);
+            changed = true;
+        }
+        if (changed) {
+            auto displayImage = DisplayImage::create(pixbuf);
+            m_nomadWin->setDisplayImage(displayImage);
+            refresh();
+        }
+    }
+}
+
 ApplicationSupport&
 Preview::getApplicationSupport()
 {
@@ -233,4 +279,53 @@ std::shared_ptr<Config>
 Preview::getConfig()
 {
     return m_nomadWin->getConfig();
+}
+
+bool
+Preview::askScale(double& scaleVal, int& rotateVal, Gdk::RGBA& colorVal, int width, int height)
+{
+    bool ret{false};
+    ApplicationSupport& appSupport = getApplicationSupport();
+	auto builder = Gtk::Builder::create();
+    try {
+        builder->add_from_resource(appSupport.getApplication()->get_resource_base_path() + "/imageScale-dlg.ui");
+		Gtk::Dialog* dlg;
+        builder->get_widget("scaleDlg", dlg);
+        Gtk::Label* lblScale;
+        builder->get_widget("lblScale", lblScale);
+		Gtk::Scale* scale;
+        builder->get_widget("scale", scale);
+        scale->set_value(scaleVal);
+        scale->signal_value_changed().connect([scale,lblScale,width,height] {
+            lblScale->set_text(Glib::ustring::sprintf("Scale %dx%d"
+                        , static_cast<int>(width * scale->get_value())
+                        , static_cast<int>(height * scale->get_value())));
+        });
+        Gtk::ColorButton* color;
+        builder->get_widget("color", color);
+        color->set_rgba(colorVal);
+        Gtk::Label* lblColor;
+        builder->get_widget("lblColor", lblColor);
+        Gtk::SpinButton* spinRotate;
+        builder->get_widget("rotate", spinRotate);
+        spinRotate->set_value(rotateVal);
+	    int result = dlg->run();
+		switch (result) {
+			case Gtk::RESPONSE_OK:
+                std::cout << "Scale " << scale->get_value() << std::endl;
+                std::cout << "Rotate " << spinRotate->get_value_as_int() << std::endl;
+                scaleVal = scale->get_value();
+                rotateVal = spinRotate->get_value_as_int();
+                colorVal = color->get_rgba();
+                ret = true;
+				break;
+			default:
+				break;
+		}
+		delete dlg;
+    }
+    catch (const Glib::Error &ex) {
+        appSupport.showError(Glib::ustring::sprintf("Unable to load imageScale-dlg: %s",  ex.what()));
+    }
+    return ret;
 }

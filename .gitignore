@@ -72,3 +72,4 @@
 /PKGBUILD
 /pkg/
 /src/configure.ac
+/compile_commands.json

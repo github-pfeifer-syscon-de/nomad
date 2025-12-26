@@ -5,14 +5,14 @@
 PKGCONFIG = pkg-config
 GLIB_COMPILE_RESOURCES = $(shell $(PKGCONFIG) --variable=glib_compile_resources gio-2.0)
 
-NOMAD_RESOURCE_XML = nomad.gresources.xml
-RESOURCE_C = ../src/resources.c
-NOMAD_RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=. --generate-dependencies $(NOMAD_RESOURCE_XML))
+NOMAD_RESOURCE_XML = $(srcdir)/nomad.gresources.xml
+RESOURCE_C = $(top_srcdir)/src/resources.c
+NOMAD_RESOURCES = $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=$(srcdir) --generate-dependencies $(NOMAD_RESOURCE_XML))
 
 all:$(RESOURCE_C)
 
 $(RESOURCE_C): $(NOMAD_RESOURCE_XML) $(NOMAD_RESOURCES)
-	$(GLIB_COMPILE_RESOURCES) --target=$(RESOURCE_C) --sourcedir=. --generate-source $(NOMAD_RESOURCE_XML)
+	$(GLIB_COMPILE_RESOURCES) --target=$(RESOURCE_C) --sourcedir=$(srcdir) --generate-source $(NOMAD_RESOURCE_XML)
 
 # The desktop files
 desktopdir = $(datadir)/applications

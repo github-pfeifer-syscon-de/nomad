@@ -22,6 +22,7 @@
 #include <list>
 #include <memory>
 #include <ImageArea.hpp>
+#include <vector>
 
 class NomadWin;
 class Shape;
@@ -45,6 +46,8 @@ public:
     void create(std::array<int,2> size, const Gdk::Color& background);
     void add(const std::shared_ptr<Shape>& shape);
     void edit(int x, int y);
+    void scale(int x, int y);
+    void refresh();
     ApplicationSupport& getApplicationSupport();
 protected:
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
@@ -54,6 +57,8 @@ protected:
         const Glib::RefPtr<Gdk::Pixbuf> pixbuf) override;
     std::shared_ptr<Shape> hit(double x, double y);
     std::shared_ptr<Config> getConfig();
+    bool askScale(double& scaleVal, int& rotateVal, Gdk::RGBA& colorVal, int width, int height);
+
 private:
     NomadWin* m_nomadWin;
     std::list<std::shared_ptr<Shape>> m_shapes;

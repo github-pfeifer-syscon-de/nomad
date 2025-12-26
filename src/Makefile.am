@@ -10,7 +10,7 @@ AM_CPPFLAGS = \
 	$(GTKMM_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
 	$(HARU_CFLAGS) \
-	$(RSVG_CFLAGS)
+	$(RSVG_CFLAGS)   
 
 nomad_CFLAGS = -Wall
 nomad_CXXFLAGS = -Wall \
@@ -25,7 +25,7 @@ nomad_LDADD =  \
 	$(GENERICIMG_LIBS) \
 	$(HARU_LIBS) \
 	$(RSVG_LIBS)
-
+    
 nomad_SOURCES = resources.c \
 	Config.cpp \
 	Config.hpp \
@@ -49,6 +49,8 @@ nomad_SOURCES = resources.c \
 	PenlWindow.cpp \
 	ScaleableShape.hpp \
 	ScaleableShape.cpp \
+    ImageReader.hpp \
+    ImageReader.cpp \
 	Preview.cpp \
 	Preview.hpp
 
@@ -77,3 +79,12 @@ nomad_SOURCES += \
 	WiaScan.hpp \
 	WiaScan.cpp
 endif
+
+if LIBRAW
+    nomad_LDADD += $(LIBRAW_LIBS)
+    AM_CPPFLAGS += $(LIBRAW_CFLAGS)
+    nomad_SOURCES  += \
+        RawImageReader.hpp \
+        RawImageReader.cpp
+endif
+

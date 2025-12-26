@@ -32,9 +32,20 @@ AC_SEARCH_LIBS([HPDF_Page_BeginText], [hpdf], [USE_LIBHARU="true"])
 
 PKG_CHECK_MODULES([RSVG], [librsvg-2.0])
 
-PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.4.4])
+PKG_CHECK_MODULES([GENERICIMG], [genericimg >= 0.4.7])
 
 PKG_CHECK_MODULES(JSONGLIB1, [json-glib-1.0])
+
+AC_ARG_WITH([libraw], AS_HELP_STRING([--with-libraw]
+        , [Build with libraw support, this is just a try to get some insight use e.g. rawtherapee for real raw-support]
+    )
+)
+
+AS_IF([test "x$with_libraw" = "xyes"], [
+    PKG_CHECK_MODULES([LIBRAW], [libraw >= 0.20.0], [AC_DEFINE([LIBRAW], [1], [Using libraw for limited raw support])])
+])
+
+AM_CONDITIONAL([LIBRAW], [test "x$with_libraw" = "xyes"])
 
 AM_CONDITIONAL([HAVE_X11], [test x$USE_X11 = xtrue])
 AM_CONDITIONAL([HAVE_WIN], [test x$USE_WIN = xtrue])
