@@ -1,4 +1,4 @@
-AC_INIT([nomad program],[0.1],[nomad@pfeifer-syscon.de])
+AC_INIT([nomad program],[0.1],[RolandPf67@googlemail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 
