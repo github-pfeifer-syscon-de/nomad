@@ -12,6 +12,7 @@
     <file preprocess="xml-stripblanks">imageview.ui</file>
     <file preprocess="xml-stripblanks">penl-win.ui</file>
     <file preprocess="xml-stripblanks">imageScale-dlg.ui</file>
+    <file preprocess="xml-stripblanks">raw-dlg.ui</file>
     <file>nomad.png</file>
   </gresource>
 </gresources>

@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
+/* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2023 RPf 
  *
@@ -23,6 +23,9 @@
 #include <StringUtils.hpp>
 
 #include "Preview.hpp"
+
+#include <ImageFileChooser.hpp>
+
 #include "SvgShape.hpp"
 #include "NomadWin.hpp"
 #include "TextShape.hpp"
@@ -91,10 +94,10 @@ Preview::create(std::array<int,2> size, const Gdk::Color& background)
 }
 
 void
-Preview::loadImage(const Glib::RefPtr<Gio::File>& f)
+Preview::loadImage(const Glib::RefPtr<Gio::File>& f, ImageFileChooser& file_chooser)
 {    
     auto imageReaders = ImageReaders::createDefault();
-    Glib::RefPtr<Gdk::Pixbuf> pixbuf = imageReaders->read(f);
+    Glib::RefPtr<Gdk::Pixbuf> pixbuf = imageReaders->read(f, file_chooser);
     auto displayImage = DisplayImage::create(pixbuf);
     m_nomadWin->setDisplayImage(displayImage);
     refresh();

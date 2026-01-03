@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
+/* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2023 RPf 
  *
@@ -24,6 +24,7 @@
 #include <ImageArea.hpp>
 #include <vector>
 
+class ImageFileChooser;
 class NomadWin;
 class Shape;
 class TextInfo;
@@ -41,7 +42,7 @@ public:
 
     void loadSvg(const Glib::RefPtr<Gio::File>& f);
     bool saveImage(const Glib::ustring& file);
-    void loadImage(const Glib::RefPtr<Gio::File>& f);
+    void loadImage(const Glib::RefPtr<Gio::File>& f, ImageFileChooser& file_chooser);
     void addText(const TextInfo& text);
     void create(std::array<int,2> size, const Gdk::Color& background);
     void add(const std::shared_ptr<Shape>& shape);

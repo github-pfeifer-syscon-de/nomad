@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
+/* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
  * Copyright (C) 2020 rpf
  *
@@ -333,11 +333,12 @@ NomadWin::activate_actions()
                 auto imageReaders = ImageReaders::createDefault();
                 imageReaders->prepareFilter(filter);
                 ImageFileChooser file_chooser(*this, false, filter);
+                imageReaders->addCustomPreview(file_chooser, m_appSupport);
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     try {
                         auto imageFile = file_chooser.get_file();
                         Preview* preview = getPreview();
-                        preview->loadImage(imageFile);
+                        preview->loadImage(imageFile, file_chooser);
                     }
                     catch (const Glib::Error &ex) {
                         m_appSupport.showError(Glib::ustring::sprintf("Error %s loading %s", ex.what(), file_chooser.get_filename()));

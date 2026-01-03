@@ -74,3 +74,5 @@
 /src/configure.ac
 /compile_commands.json
 /src/.save/
+/test/Makefile
+/test/Makefile.in

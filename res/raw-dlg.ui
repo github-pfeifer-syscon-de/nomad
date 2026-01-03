@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.40.0 -->
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+  <object class="GtkAdjustment" id="adjustBright">
+    <property name="lower">0.10</property>
+    <property name="upper">1.5</property>
+    <property name="step-increment">0.10</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustContrast">
+    <property name="lower">0.10</property>
+    <property name="upper">2.5</property>
+    <property name="step-increment">0.10</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkBox" id="content">
+    <property name="visible">True</property>
+    <property name="can-focus">False</property>
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="GtkLabel" id="lblBright">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="ypad">3</property>
+        <property name="label" translatable="yes">Brightness</property>
+        <property name="xalign">0.029999999329447746</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">False</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkScale" id="bright">
+        <property name="visible">True</property>
+        <property name="can-focus">True</property>
+        <property name="adjustment">adjustBright</property>
+        <property name="show-fill-level">True</property>
+        <property name="round-digits">2</property>
+        <property name="digits">2</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="lblContrast">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="ypad">3</property>
+        <property name="label" translatable="yes">Contrast</property>
+        <property name="xalign">0.029999999329447746</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkScale" id="contrast">
+        <property name="visible">True</property>
+        <property name="can-focus">True</property>
+        <property name="adjustment">adjustContrast</property>
+        <property name="show-fill-level">True</property>
+        <property name="round-digits">2</property>
+        <property name="digits">2</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">4</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkImage" id="image">
+        <property name="width-request">160</property>
+        <property name="height-request">120</property>
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="ypad">3</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">4</property>
+      </packing>
+    </child>
+  </object>
+</interface>

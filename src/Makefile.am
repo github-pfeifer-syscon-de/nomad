@@ -14,7 +14,8 @@ AM_CPPFLAGS = \
 
 nomad_CFLAGS = -Wall
 nomad_CXXFLAGS = -Wall \
-	-Wconversion
+	-Wconversion \
+	-Wpedantic
 
 nomad_LDFLAGS = @EXTRA_LDFLAGS@
 
