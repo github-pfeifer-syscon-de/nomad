@@ -314,7 +314,7 @@ RawImageReader::update_preview() {
     auto file = m_chooser->get_preview_file();
     bool set{false};
     if (file) {
-        auto ext = StringUtils::lower(StringUtils::getExtension(file));
+        auto ext = StringUtils::lowerStd(StringUtils::getExtension(file));
         if (m_types.contains(ext)) {
             if (m_rawImagePreview->update_preview(file)) {
                 set = true;
@@ -350,7 +350,7 @@ Glib::RefPtr<Gdk::Pixbuf>
 RawImageReader::read(const Glib::RefPtr<Gio::File>& file, ImageFileChooser& file_chooser)
 {
     bool accept{false};
-    auto fileExt = StringUtils::lower(StringUtils::getExtension(file->get_basename()));
+    auto fileExt = StringUtils::lowerStd(StringUtils::getExtension(file->get_basename()));
     for (auto& ext : rawExtensions()) {
         if (ext == fileExt) {
             accept = true;
@@ -385,5 +385,5 @@ bool
 RawImageReader::acceptFile(const Gtk::FileFilter::Info& filter_info)
 {
     auto ext = StringUtils::getExtension(filter_info.filename);
-    return m_types.contains(StringUtils::lower(ext));
+    return m_types.contains(StringUtils::lowerStd(ext));
 }
