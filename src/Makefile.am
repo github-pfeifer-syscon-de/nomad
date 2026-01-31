@@ -12,12 +12,15 @@ AM_CPPFLAGS = \
 	$(HARU_CFLAGS) \
 	$(RSVG_CFLAGS)   
 
-nomad_CFLAGS = -Wall
-nomad_CXXFLAGS = -Wall \
-	-Wconversion \
-	-Wpedantic
-
 nomad_LDFLAGS = @EXTRA_LDFLAGS@
+nomad_CFLAGS = $(WARN_CFLAGS)
+nomad_CXXFLAGS = $(WARN_CXXFLAGS)
+if RELEASE
+nomad_CXXFLAGS += $(OPTIM_CXXFLAGS)
+else
+nomad_CXXFLAGS += $(INSTUMENT_CXXFLAGS)
+nomad_LDFLAGS += $(INSTUMENT_LINKFLAGS)
+endif
 
 nomad_LDADD =  \
 	$(X11_LIBS) \
