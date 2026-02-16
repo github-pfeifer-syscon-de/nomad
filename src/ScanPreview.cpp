@@ -23,7 +23,7 @@
 #include "ScanPreview.hpp"
 #include "NomadWin.hpp"
 #include "WiaProperty.hpp"
-#include "config.h"
+#include "nomad_config.h"
 
 #ifdef __WIN32__
 #include "WiaScan.hpp"
@@ -48,7 +48,7 @@ WorkThread::run()
     for (auto dev : devs) {
         if (dev->getDeviceId() == m_deviceId) {
             found = true;
-            m_pCallback  = new WiaDataCallback(m_dispatcher);
+            m_pCallback = new WiaDataCallback(m_dispatcher);
             if (m_pCallback) {
                 m_result = dev->scan(m_pCallback, m_properties);
                 std::cout << "scan " << (m_result ? "ok" : "err") << std::endl;    // will show error on color scan ?
@@ -309,86 +309,86 @@ ScanPreview::scanProgress()
         uint32_t transferedSize = 0;
         int32_t transferedPercent = 0;
         uint32_t transfereAlloc = 0;
-        uint8_t* p = m_worker->getDataCallback()->getDataTransfered(&transferedSize, &transferedPercent, &transfereAlloc);
-        std::cout  << "percent " << transferedPercent
-                   << " size " << transferedSize
-                   << std::endl;
-        if (p && transferedSize >= sizeof(BITMAPINFOHEADER)) {
-            auto bi = reinterpret_cast<BITMAPINFOHEADER*>(p);
-            if (m_initScan) {
-                if (bi->biWidth >= 0) {
-                    std::array<int,2> size {std::abs(bi->biWidth),std::abs(bi->biHeight)};
-                    Gdk::Color color;
-                    color.set("#000");
-                    create(size, color);
-                    m_initScan = false;
-                    m_RowLast = 0;
-                    std::cout << "Got scan size "
-                          << bi->biWidth << " " << bi->biHeight
-                          << " bits " << bi->biBitCount
-                          << " compress " << std::hex << bi->biCompression << std::dec
-                          << " rowstride " << m_pixbuf->get_rowstride()
-                          << std::endl;
-                }
-                else {
-                    //std::cout << dump(p, 64) << std::endl;
-                    std::cout << "Bitmap wrong info header " << std::endl;
-                }
-            }
-            else {
-                // we get width 2550 height -3501 bits 24 compress 0
-                // the last packet will be offs 26629000 len 160692
-                //   the first 40+bytes will be bitmap-header
-                //   the byteStrideSize should be 7652 = (2550 * 3) round up to 4
-                //   so 26789652 / 7652 will give use the expected 3501
-                int32_t height = std::abs(bi->biHeight);
-                bool bmpInverseHeight = bi->biHeight < 0;
-                int32_t width = std::abs(bi->biWidth);
-                uint32_t byteRowStride = ((width * bi->biBitCount + 31) / 32) * 4;
-                uint32_t headerSize = (transfereAlloc) - (byteRowStride * height - 1); // the size of header e.g. for gray is larger than just sizeof(BITMAPINFOHEADER)
-                uint8_t* bmpData = p + headerSize;
-                uint32_t* pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels());
-                m_bytePerPixel = bi->biBitCount / 8;
-                int32_t uptoRow = std::min(static_cast<int32_t>((transferedSize - headerSize) / byteRowStride), height);
-                std::cout << "uptoRow " << uptoRow
-                          << " byte stride " << byteRowStride << std::endl;
-                for (int32_t y = m_RowLast; y <= uptoRow; ++y) {
-                    int32_t yd = y;
-                    if (!bmpInverseHeight) {
-                        yd = (height-1) - y;
-                    }
-                    auto rows = bmpData + (y * byteRowStride);
-                    auto rowd = pixData + (yd * m_pixbuf->get_rowstride() / 4);
-                    //std::cout << "row " << y << std::endl;
-                    for (int32_t x = 0; x < width; ++x) {
-                        //  windows   BGR?
-                        uint32_t rgb;
-                        if (m_bytePerPixel >= 3) {       // discard alpha in case it is there...
-                            rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
-                        }
-                        else {
-                            uint8_t gray;
-                            if (m_bytePerPixel == 1)  {   // grayscale
-                                gray = *rows;
-                            }
-                            else {                      // b&w
-                                auto bit = rows[x >> 3u] & (0x80u >> (x & 0x7u));
-                                gray = bit != 0 ? 0xffu : 0u;
-                            }
-                            rgb = (gray << 16u) | (gray << 8u) | gray;
-                        }
-                        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
-                        *rowd = 0xff000000u | rgb;
-                        ++rowd;
-                        rows += m_bytePerPixel;
-                    }
-                }
-                m_scaled.reset(); // need to refresh
-                //queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
-                queue_draw();   // as the view is scaled no direct relationship...
-                m_RowLast = uptoRow;
-            }
-        }
+//        uint8_t* p = m_worker->getDataCallback()->getDataTransfered(&transferedSize, &transferedPercent, &transfereAlloc);
+//        std::cout  << "percent " << transferedPercent
+//                   << " size " << transferedSize
+//                   << std::endl;
+//        if (p && transferedSize >= sizeof(BITMAPINFOHEADER)) {
+//            auto bi = reinterpret_cast<BITMAPINFOHEADER*>(p);
+//            if (m_initScan) {
+//                if (bi->biWidth >= 0) {
+//                    std::array<int,2> size {std::abs(bi->biWidth),std::abs(bi->biHeight)};
+//                    Gdk::Color color;
+//                    color.set("#000");
+//                    create(size, color);
+//                    m_initScan = false;
+//                    m_RowLast = 0;
+//                    std::cout << "Got scan size "
+//                          << bi->biWidth << " " << bi->biHeight
+//                          << " bits " << bi->biBitCount
+//                          << " compress " << std::hex << bi->biCompression << std::dec
+//                          << " rowstride " << m_pixbuf->get_rowstride()
+//                          << std::endl;
+//                }
+//                else {
+//                    //std::cout << dump(p, 64) << std::endl;
+//                    std::cout << "Bitmap wrong info header " << std::endl;
+//                }
+//            }
+//            else {
+//                // we get width 2550 height -3501 bits 24 compress 0
+//                // the last packet will be offs 26629000 len 160692
+//                //   the first 40+bytes will be bitmap-header
+//                //   the byteStrideSize should be 7652 = (2550 * 3) round up to 4
+//                //   so 26789652 / 7652 will give use the expected 3501
+//                int32_t height = std::abs(bi->biHeight);
+//                bool bmpInverseHeight = bi->biHeight < 0;
+//                int32_t width = std::abs(bi->biWidth);
+//                uint32_t byteRowStride = ((width * bi->biBitCount + 31) / 32) * 4;
+//                uint32_t headerSize = (transfereAlloc) - (byteRowStride * height - 1); // the size of header e.g. for gray is larger than just sizeof(BITMAPINFOHEADER)
+//                uint8_t* bmpData = p + headerSize;
+//                uint32_t* pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels());
+//                m_bytePerPixel = bi->biBitCount / 8;
+//                int32_t uptoRow = std::min(static_cast<int32_t>((transferedSize - headerSize) / byteRowStride), height);
+//                std::cout << "uptoRow " << uptoRow
+//                          << " byte stride " << byteRowStride << std::endl;
+//                for (int32_t y = m_RowLast; y <= uptoRow; ++y) {
+//                    int32_t yd = y;
+//                    if (!bmpInverseHeight) {
+//                        yd = (height-1) - y;
+//                    }
+//                    auto rows = bmpData + (y * byteRowStride);
+//                    auto rowd = pixData + (yd * m_pixbuf->get_rowstride() / 4);
+//                    //std::cout << "row " << y << std::endl;
+//                    for (int32_t x = 0; x < width; ++x) {
+//                        //  windows   BGR?
+//                        uint32_t rgb;
+//                        if (m_bytePerPixel >= 3) {       // discard alpha in case it is there...
+//                            rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
+//                        }
+//                        else {
+//                            uint8_t gray;
+//                            if (m_bytePerPixel == 1)  {   // grayscale
+//                                gray = *rows;
+//                            }
+//                            else {                      // b&w
+//                                auto bit = rows[x >> 3u] & (0x80u >> (x & 0x7u));
+//                                gray = bit != 0 ? 0xffu : 0u;
+//                            }
+//                            rgb = (gray << 16u) | (gray << 8u) | gray;
+//                        }
+//                        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
+//                        *rowd = 0xff000000u | rgb;
+//                        ++rowd;
+//                        rows += m_bytePerPixel;
+//                    }
+//                }
+//                m_scaled.reset(); // need to refresh
+//                //queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
+//                queue_draw();   // as the view is scaled no direct relationship...
+//                m_RowLast = uptoRow;
+//            }
+//        }
     }
     else {
         std::cout << "missing callback!" << std::endl;

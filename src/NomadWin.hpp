@@ -44,7 +44,7 @@ public:
     bool ask_size(std::array<int,2>& size, Gdk::Color& background);
     std::shared_ptr<Config> getConfig();
     void on_hide() override;
-
+    void show_error(const Glib::ustring& message);
 protected:
     Preview* getPreview();
     virtual Gtk::Menu* build_popup(int x, int y) override;

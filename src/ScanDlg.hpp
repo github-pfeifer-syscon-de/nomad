@@ -19,7 +19,8 @@
 #pragma once
 
 #include <gtkmm.h>
-#include <wia.h>
+// use local wia.h as workaround if the msys2 version is filled in, use <wia.h>
+#include "wia.h"
 
 #include "ScanPreview.hpp"
 

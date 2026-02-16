@@ -23,8 +23,9 @@
 #include "StringUtils.hpp"
 
 
+
 static  HRESULT
-createWiaDeviceManager( IWiaDevMgr **ppWiaDevMgr ) //XP or earlier
+createWiaDeviceManager( IWiaDevMgr2 **ppWiaDevMgr ) //XP or earlier
 {
     //
     // Validate arguments
@@ -41,10 +42,8 @@ createWiaDeviceManager( IWiaDevMgr **ppWiaDevMgr ) //XP or earlier
     //
     // Create an instance of the device manager
     //
-
-    //XP or earlier:
-    HRESULT hr = CoCreateInstance(CLSID_WiaDevMgr, NULL, CLSCTX_LOCAL_SERVER, IID_IWiaDevMgr, (void**) ppWiaDevMgr);
-
+    //Vista or later:
+    HRESULT hr = CoCreateInstance(CLSID_WiaDevMgr2, NULL, CLSCTX_LOCAL_SERVER, IID_IWiaDevMgr2, (void**) ppWiaDevMgr);
     //
     // Return the result of creating the device manager
     //
@@ -72,26 +71,12 @@ WiaScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
     // How many properties are you querying for?
     //
     const ULONG c_nPropertyCount = sizeof (PropSpec) / sizeof (PropSpec[0]);
-
-    //
-    // Define which properties you want to read:
-    // Device ID.  This is what you would use to create
-    // the device.
-    //
     PropSpec[0].ulKind = PRSPEC_PROPID;
-    PropSpec[0].propid = WIA_DIP_DEV_ID;
-
-    //
-    // Device Name
-    //
+    PropSpec[0].propid = WIA_DIP_DEV_ID;    // Device ID.  This is what you would use to create the device.
     PropSpec[1].ulKind = PRSPEC_PROPID;
-    PropSpec[1].propid = WIA_DIP_DEV_NAME;
-
-    //
-    // Device description
-    //
+    PropSpec[1].propid = WIA_DIP_DEV_NAME;  // Device Name
     PropSpec[2].ulKind = PRSPEC_PROPID;
-    PropSpec[2].propid = WIA_DIP_DEV_DESC;
+    PropSpec[2].propid = WIA_DIP_DEV_DESC;  // Device description
 
     //
     // Ask for the property values
@@ -115,9 +100,6 @@ WiaScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
             devDescr = PropVar[2].bstrVal;
         }
         if (devId) {
-            //std::cout << "WiaScan::readSomeWiaProperties WIA_DIP_DEV_ID: " << StringUtils::utf8_encode(devId)
-            //          << " WIA_DIP_DEV_NAME: " << StringUtils::utf8_encode(devName)
-            //          << " WIA_DIP_DEV_DESC: " << StringUtils::utf8_encode(devDescr) << std::endl;
             auto dev = std::make_shared<WiaDevice>(this, devId, devName, devDescr);
             m_devices.push_back(dev);
         }
@@ -130,6 +112,9 @@ WiaScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
         //
         FreePropVariantArray(c_nPropertyCount, PropVar);
     }
+    else {
+        std::cout << "WiaScan::readSomeWiaProperties hr " << hr << std::endl;
+    }
 
     //
     // Return the result of reading the properties
@@ -139,7 +124,7 @@ WiaScan::readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage)
 
 
 HRESULT
-WiaScan::enumerateWiaDevices() //XP or earlier
+WiaScan::enumerateWiaDevices() 
 {
     //
     // Validate arguments
@@ -197,6 +182,9 @@ WiaScan::enumerateWiaDevices() //XP or earlier
         //
         pWiaEnumDevInfo->Release();
         pWiaEnumDevInfo = NULL;
+    }
+    else {
+        std::cout << "WiaScan::enumerateWiaDevices hr " << hr << std::endl;
     }
 
     //

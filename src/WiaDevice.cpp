@@ -30,13 +30,16 @@ WiaDevice::WiaDevice(WiaScan* winScan, const BSTR& devId, const BSTR& devName, c
 , m_devName{StringUtils::utf8_encode(devName)}
 , m_devDescr{StringUtils::utf8_encode(devDescr)}
 {
+    //std::cout << "WiaDevice::WiaDevice WIA_DIP_DEV_ID: " << m_devId
+    //      << " WIA_DIP_DEV_NAME: " << m_devName
+    //      << " WIA_DIP_DEV_DESC: " << m_devDescr << std::endl;
     HRESULT hr = createWiaDevice(winScan->getWiaDevMgr(), devId);
     if (SUCCEEDED(hr)) {
-
+        //std::cout << "WiaDevice::WiaDevice succeeded" << std::endl;
     }
     else {
         std::string message = std::system_category().message(hr);
-        std::cout << "Error " << hr
+        std::cout << "WiaDevice::WiaDevice  Error " << hr
                   << " createWiaDevice " << message << std::endl;
     }
 
@@ -62,7 +65,7 @@ WiaDevice::getDeviceName()
     return m_devName;
 }
 
-IWiaItem*
+IWiaItem2*
 WiaDevice::getWiaItem() {
     return m_pWiaDevice;
 }
@@ -71,7 +74,7 @@ bool
 WiaDevice::scan(WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
 {
     if (m_pWiaDevice) {
-        IWiaItem *pChildWiaItem = nullptr;
+        IWiaItem2 *pChildWiaItem = nullptr;
         HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
         if (SUCCEEDED(hr)) {
             if (pChildWiaItem) {
@@ -94,8 +97,8 @@ WiaDevice::scan(WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> propert
 }
 
 
-HRESULT  //XP or earlier:
-WiaDevice::createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID )
+HRESULT  //Vista or later:
+WiaDevice::createWiaDevice( IWiaDevMgr2 *pWiaDevMgr, BSTR bstrDeviceID )
 {
     //
     // Validate arguments
@@ -112,7 +115,7 @@ WiaDevice::createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID )
     //
     // Create the WIA Device
     //
-    HRESULT hr = pWiaDevMgr->CreateDevice(bstrDeviceID, &m_pWiaDevice);
+    HRESULT hr = pWiaDevMgr->CreateDevice(0, bstrDeviceID, &m_pWiaDevice);
 
     //
     // Return the result of creating the device
@@ -124,11 +127,11 @@ std::list<std::shared_ptr<WiaProperty>>
 WiaDevice::getProperties()
 {
     if (m_properties.empty()) {
-        IWiaItem *pChildWiaItem = nullptr;
+        IWiaItem2 *pChildWiaItem = nullptr;
         HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
         if (SUCCEEDED(hr)) {
             if (pChildWiaItem) {
-                IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+                IWiaPropertyStorage *pWiaPropertyStorage{};
                 HRESULT hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
                 if (SUCCEEDED(hr)) {
                     getProperties(pWiaPropertyStorage, "image");
@@ -144,24 +147,34 @@ WiaDevice::getProperties()
             }
         }
         else {
-            std::cout << "Error enumerate !" << std::endl;
+            std::cout << "Error enumerate hr " << hr << "!" << std::endl;
         }
     }
     return m_properties;
 }
 
 void
-WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section)
+WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const std::string& section)
 {
-    IEnumSTATPROPSTG* penum = nullptr;
-    HRESULT hr = pWiaPropertyStorage->Enum(&penum);
+    std::cout << "WiaDevice::getProperties pWiaPropertyStorage " << pWiaPropertyStorage << std::endl;
+    ULONG ulNumProps{};
+    HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
+    if (hr != S_OK) {
+        std::string message = std::system_category().message(hr);
+        std::cout << "WiaDevice::getPropertiesulNumProps hr " << hr 
+                  << " message " << message << std::endl;
+    }
+    IEnumSTATPROPSTG *penum = NULL;
+    hr = pWiaPropertyStorage->Enum(&penum);
     if (SUCCEEDED(hr)) {
         while (S_OK == hr) {
             //
             // Get the next device's property storage interface pointer
             //
-            STATPROPSTG nextWiaPropertyStorage{0};
+            STATPROPSTG nextWiaPropertyStorage{};
             hr = penum->Next(1, &nextWiaPropertyStorage, NULL);
+            //std::cout << "WiaDevice::getProperties Next hr " << hr
+            //          << " nextWiaPropertyStorage " << (nextWiaPropertyStorage.lpwstrName != nullptr ? StringUtils::utf8_encode(nextWiaPropertyStorage.lpwstrName) : "null") << std::endl;
 
             // pWiaEnumDevInfo->Next will return S_FALSE when the list is
             // exhausted, so check for S_OK before using the returned
@@ -170,15 +183,14 @@ WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::u
                 auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
                 m_properties.push_back(property);
                 if (!section.empty()) {
-                    Glib::ustring info = property->info(pWiaPropertyStorage);
+                    std::string info = property->info(pWiaPropertyStorage);
                     std::cout << section << " ---------------------------------------" << std::endl
                               << info << std::endl;
                 }
             }
         }
         //
-        // If the result of the enumeration is S_FALSE (which
-        // is normal), change it to S_OK.
+        // If the result of the enumeration is S_FALSE (which is normal), change it to S_OK.
         //
         if (S_FALSE == hr) {
             hr = S_OK;
@@ -191,189 +203,221 @@ WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::u
         penum = NULL;
     }
     else {
-        std::cout << "Error " << hr << " pWiaPropertyStorage->Enum" << std::endl;
+        std::string message = std::system_category().message(hr);
+        std::cout << "WiaDevice::getProperties pWiaPropertyStorage->Enum hr " << hr 
+                  << " message " << message << std::endl;
     }
 
 }
 
 HRESULT
-WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
+WiaDevice::transferWiaItem( IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
 {
     //
     // Validate arguments
     //
     if (NULL == pWiaItem) {
         return E_INVALIDARG;
-    }
-
+    }    
+    // Get the IWiaTransfer interface
     //
-    // Get the IWiaPropertyStorage interface so you can set required properties.
-    //
-    IWiaPropertyStorage *pWiaPropertyStorage = NULL;
-    HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+    IWiaTransfer *pWiaTransfer = NULL;
+    HRESULT hr = pWiaItem->QueryInterface(IID_IWiaTransfer,(void**)&pWiaTransfer);
     if (SUCCEEDED(hr)) {
-        //
-        // Prepare PROPSPECs and PROPVARIANTs for setting the
-        // media type and format
-        //
-        std::vector<PROPSPEC> PropSpec;
-        std::vector<PROPVARIANT> PropVariant;
-
-        //
-        // Use BMP as the output format
-        //
-        GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_MEMORYBMP;    // seems to have not much influence
-
-        //
-        // Initialize the PROPSPECs&PROPVARIANTs
-        //
-        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = WIA_IPA_FORMAT});
-        PROPVARIANT propVar;
-        PropVariantInit(&propVar);
-        propVar.vt = VT_CLSID;
-        propVar.puuid = &guidOutputFormat;
-        PropVariant.push_back(propVar);
-
-        PropSpec.push_back( {.ulKind = PRSPEC_PROPID, .propid = WIA_IPA_TYMED});
-        PropVariantInit(&propVar);
-        propVar.vt = VT_I4;
-        propVar.lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
-        PropVariant.push_back(propVar);
-
-        for (auto entry : properties) {
-            auto value = entry.second;
-            PropSpec.push_back({
-                .ulKind = PRSPEC_PROPID,
-                .propid = entry.first});
-            PropVariantInit(&propVar);
-            if (value.get(propVar)) {
-                PropVariant.push_back(propVar);
-            }
-            else {
-                std::cout << "The variant " << entry.first << " value type " << value.getVt() << " was unsupported!" << std::endl;
-            }
-        }
-        //
-        // Set the properties
-        //
-        hr = pWiaPropertyStorage->WriteMultiple(static_cast<ULONG>(PropSpec.size()), &PropSpec[0], &PropVariant[0], WIA_IPA_FIRST );
-        if (SUCCEEDED(hr)) {
-            //
-            // Get the IWiaDataTransfer interface
-            //
-            IWiaDataTransfer *pWiaDataTransfer = NULL;
-            hr = pWiaItem->QueryInterface( IID_IWiaDataTransfer, (void**)&pWiaDataTransfer );
-            if (SUCCEEDED(hr)) {
-                //
-                // Create our callback class
-                //
-                if (pCallback) {
-                    //
-                    // Get the IWiaDataCallback interface from our callback class.
-                    //
-                    IWiaDataCallback *pWiaDataCallback = NULL;
-                    hr = pCallback->QueryInterface( IID_IWiaDataCallback, (void**)&pWiaDataCallback );
-                    if (SUCCEEDED(hr)) {
-                        if (!trnsfFile) {
-//                            WIA_EXTENDED_TRANSFER_INFO  extendedTransferInfo;
-//                            hr = pWiaDataTransfer->idtGetExtendedTransferInfo(&extendedTransferInfo);
-//                            if (hr == S_OK) {
-//                                // will give maxBuf 4294967295 minBuf 0 optBuf 0 num 1
-//                                std::cout << "idtGetExtendedTransferInfo"
-//                                          << " maxBuf " << extendedTransferInfo.ulMaxBufferSize
-//                                          << " minBuf " << extendedTransferInfo.ulMinBufferSize
-//                                          << " optBuf " << extendedTransferInfo.ulOptimalBufferSize
-//                                          << " num " << extendedTransferInfo.ulNumBuffers
-//                                          << std::endl;
+        // Download   
+        hr = pWiaTransfer->Download(0,pCallback);
+        
+        // Release the IWiaTransfer 
+        pWiaTransfer->Release();
+        pWiaTransfer = NULL;
+    }
+    return hr;    
+}
+//#else
+//HRESULT
+//WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
+//{
+//    //
+//    // Validate arguments
+//    //
+//    if (NULL == pWiaItem) {
+//        return E_INVALIDARG;
+//    }
+//
+//    //
+//    // Get the IWiaPropertyStorage interface so you can set required properties.
+//    //
+//    IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+//    HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+//    if (SUCCEEDED(hr)) {
+//        //
+//        // Prepare PROPSPECs and PROPVARIANTs for setting the
+//        // media type and format
+//        //
+//        std::vector<PROPSPEC> PropSpec;
+//        std::vector<PROPVARIANT> PropVariant;
+//
+//        //
+//        // Use BMP as the output format
+//        //
+//        GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_MEMORYBMP;    // seems to have not much influence
+//
+//        //
+//        // Initialize the PROPSPECs&PROPVARIANTs
+//        //
+//        PropSpec.push_back( {
+//            .ulKind = PRSPEC_PROPID, 
+//            .propid = WIA_IPA_FORMAT});
+//        PROPVARIANT propVar;
+//        PropVariantInit(&propVar);
+//        propVar.vt = VT_CLSID;
+//        propVar.puuid = &guidOutputFormat;
+//        PropVariant.push_back(propVar);
+//
+//        PropSpec.push_back( {
+//            .ulKind = PRSPEC_PROPID, 
+//            .propid = WIA_IPA_TYMED});
+//        PropVariantInit(&propVar);
+//        propVar.vt = VT_I4;
+//        propVar.lVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
+//        PropVariant.push_back(propVar);
+//
+//        for (auto entry : properties) {
+//            auto value = entry.second;
+//            PropSpec.push_back({
+//                .ulKind = PRSPEC_PROPID,
+//                .propid = entry.first});
+//            PropVariantInit(&propVar);
+//            if (value.get(propVar)) {
+//                PropVariant.push_back(propVar);
+//            }
+//            else {
+//                std::cout << "The variant " << entry.first << " value type " << value.getVt() << " was unsupported!" << std::endl;
+//            }
+//        }
+//        //
+//        // Set the properties
+//        //
+//        hr = pWiaPropertyStorage->WriteMultiple(static_cast<ULONG>(PropSpec.size()), &PropSpec[0], &PropVariant[0], WIA_IPA_FIRST );
+//        if (SUCCEEDED(hr)) {
+//            //
+//            // Get the IWiaDataTransfer interface
+//            //
+//            IWiaDataTransfer *pWiaDataTransfer = NULL;
+//            hr = pWiaItem->QueryInterface( IID_IWiaDataTransfer, (void**)&pWiaDataTransfer );
+//            if (SUCCEEDED(hr)) {
+//                //
+//                // Create our callback class
+//                //
+//                if (pCallback) {
+//                    //
+//                    // Get the IWiaDataCallback interface from our callback class.
+//                    //
+//                    IWiaDataCallback *pWiaDataCallback = NULL;
+//                    hr = pCallback->QueryInterface( IID_IWiaDataCallback, (void**)&pWiaDataCallback );
+//                    if (SUCCEEDED(hr)) {
+//                        if (!trnsfFile) {
+////                            WIA_EXTENDED_TRANSFER_INFO  extendedTransferInfo;
+////                            hr = pWiaDataTransfer->idtGetExtendedTransferInfo(&extendedTransferInfo);
+////                            if (hr == S_OK) {
+////                                // will give maxBuf 4294967295 minBuf 0 optBuf 0 num 1
+////                                std::cout << "idtGetExtendedTransferInfo"
+////                                          << " maxBuf " << extendedTransferInfo.ulMaxBufferSize
+////                                          << " minBuf " << extendedTransferInfo.ulMinBufferSize
+////                                          << " optBuf " << extendedTransferInfo.ulOptimalBufferSize
+////                                          << " num " << extendedTransferInfo.ulNumBuffers
+////                                          << std::endl;
+////                            }
+////                            else {
+////                                std::cout << "idtGetExtendedTransferInfo hr " << hr << std::endl;
+////                            }
+//
+//                            // will transfer in memory
+//                            WIA_DATA_TRANSFER_INFO dataTrsfInfo{0};
+//                            dataTrsfInfo.ulSize = sizeof(WIA_DATA_TRANSFER_INFO);
+//                            dataTrsfInfo.ulBufferSize = 327680;  // (5*65536) with 0 the used buffer is 64k and called multiple times
+//                            dataTrsfInfo.ulSection = 0; // supports dedicated transfer pointer
+//                            dataTrsfInfo.bDoubleBuffer = FALSE;
+//
+//                            hr = pWiaDataTransfer->idtGetBandedData( &dataTrsfInfo, pWiaDataCallback );
+//                            if (S_OK == hr) {
+//                                std::cout << "Transfer ok " << hr << std::endl;
 //                            }
 //                            else {
-//                                std::cout << "idtGetExtendedTransferInfo hr " << hr << std::endl;
+//                                // we will always get a error
+//                                std::string message = std::system_category().message(hr);
+//                                std::cout << "Transfer error " << std::hex << hr << std::dec
+//                                          << " msg " << message << std::endl;
 //                            }
-
-                            // will transfer in memory
-                            WIA_DATA_TRANSFER_INFO dataTrsfInfo{0};
-                            dataTrsfInfo.ulSize = sizeof(WIA_DATA_TRANSFER_INFO);
-                            dataTrsfInfo.ulBufferSize = 327680;  // (5*65536) with 0 the used buffer is 64k and called multiple times
-                            dataTrsfInfo.ulSection = 0; // supports dedicated transfer pointer
-                            dataTrsfInfo.bDoubleBuffer = FALSE;
-
-                            hr = pWiaDataTransfer->idtGetBandedData( &dataTrsfInfo, pWiaDataCallback );
-                            if (S_OK == hr)
-                            {
-                                std::cout << "Transfer ok " << hr << std::endl;
-                            }
-                            else {
-                                // we will always get a error
-                                std::string message = std::system_category().message(hr);
-                                std::cout << "Transfer error " << std::hex << hr << std::dec
-                                          << " msg " << message << std::endl;
-                            }
-                        }
-                        else {
-                            // will transfer file
-                            //
-                            // Perform the transfer using default settings
-                            //
-                            STGMEDIUM stgMedium = {0};
-                            stgMedium.tymed = TYMED_FILE;
-                            hr = pWiaDataTransfer->idtGetData( &stgMedium, pWiaDataCallback );
-                            if (S_OK == hr)
-                            {
-                                //
-                                // Print the filename (note that this filename is always
-                                // a WCHAR string, not TCHAR).
-                                //
-                                std::cout << "Transferred filename: " << StringUtils::utf8_encode(stgMedium.lpszFileName) << std::endl;
-
-                                //
-                                // Release any memory associated with the stgmedium
-                                // This will delete the file stgMedium.lpszFileName.
-                                //
-                                ReleaseStgMedium( &stgMedium );
-                            }
-                        }
-
-                        //
-                        // Release the callback interface
-                        //
-                        pWiaDataCallback->Release();
-                        pWiaDataCallback = NULL;
-                    }
-
-                    //
-                    // Release our callback.  It should now delete itself.
-                    //
-                    //pCallback->Release();
-                    //pCallback = NULL;
-                }
-
-                //
-                // Release the IWiaDataTransfer
-                //
-                pWiaDataTransfer->Release();
-                pWiaDataTransfer = NULL;
-            }
-        }
-
-        //
-        // Release the IWiaPropertyStorage
-        //
-        pWiaPropertyStorage->Release();
-        pWiaPropertyStorage = NULL;
-    }
-    else {
-        std::cout << "error pWiaItem not a IID_IWiaPropertyStorage!" << std::endl;
-    }
-
-    return hr;
-}
+//                        }
+//                        else {
+//                            // will transfer file
+//                            //
+//                            // Perform the transfer using default settings
+//                            //
+//                            STGMEDIUM stgMedium = {0};
+//                            stgMedium.tymed = TYMED_FILE;
+//                            hr = pWiaDataTransfer->idtGetData( &stgMedium, pWiaDataCallback );
+//                            if (S_OK == hr)
+//                            {
+//                                //
+//                                // Print the filename (note that this filename is always
+//                                // a WCHAR string, not TCHAR).
+//                                //
+//                                std::cout << "Transferred filename: " << StringUtils::utf8_encode(stgMedium.lpszFileName) << std::endl;
+//
+//                                //
+//                                // Release any memory associated with the stgmedium
+//                                // This will delete the file stgMedium.lpszFileName.
+//                                //
+//                                ReleaseStgMedium( &stgMedium );
+//                            }
+//                        }
+//
+//                        //
+//                        // Release the callback interface
+//                        //
+//                        pWiaDataCallback->Release();
+//                        pWiaDataCallback = NULL;
+//                    }
+//
+//                    //
+//                    // Release our callback.  It should now delete itself.
+//                    //
+//                    //pCallback->Release();
+//                    //pCallback = NULL;
+//                }
+//
+//                //
+//                // Release the IWiaDataTransfer
+//                //
+//                pWiaDataTransfer->Release();
+//                pWiaDataTransfer = NULL;
+//            }
+//        }
+//
+//        //
+//        // Release the IWiaPropertyStorage
+//        //
+//        pWiaPropertyStorage->Release();
+//        pWiaPropertyStorage = NULL;
+//    }
+//    else {
+//        std::cout << "error pWiaItem not a IID_IWiaPropertyStorage!" << std::endl;
+//    }
+//
+//    return hr;
+//}
+//#endif
 
 
 
+// named EnumerateItems in example
 // this will set pRetChildItem if found
 HRESULT
-WiaDevice::findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaItem)
+WiaDevice::findItem(IWiaItem2 *pWiaItem, LONG typeMask, IWiaItem2** pRetChildWiaItem)
 {
+    //std::cout << "WiaDevice::findItem pWiaItem (Device) " << pWiaItem << std::endl;
     //
     // Validate arguments
     //
@@ -392,36 +436,30 @@ WiaDevice::findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaIt
         //
         //std::cout << "Item type " << std::hex << lItemType << std::dec
         //          << ((lItemType & WiaItemTypeFolder) != 0 ? " folder" : "")
-        //          << ((lItemType & WiaItemTypeHasAttachments) != 0 ? " attach" : "")
-        //          << std::endl;
+        //          << ((lItemType & WiaItemTypeHasAttachments) != 0 ? " attach" : "") << std::endl;
         if (lItemType & WiaItemTypeFolder || lItemType & WiaItemTypeHasAttachments) {
             //
             // Get the child item enumerator for this item.
-            //
-            IEnumWiaItem *pEnumWiaItem = NULL; //XP or earlier
-            hr = pWiaItem->EnumChildItems(&pEnumWiaItem);
+            //     
+            IEnumWiaItem2 *pEnumWiaItem = NULL; //vista and later
+            hr = pWiaItem->EnumChildItems(nullptr, &pEnumWiaItem);
             if (SUCCEEDED(hr)) {
-                //
-                // Loop until you get an error or pEnumWiaItem->Next returns
-                // S_FALSE to signal the end of the list.
-                //
+                // Loop until you get an error or pEnumWiaItem->Next returns S_FALSE to signal the end of the list.
                 while (S_OK == hr) {
                     //
                     // Get the next child item.
                     //
-                    IWiaItem *pChildWiaItem = NULL; //XP or earlier
+                    IWiaItem2 *pChildWiaItem = NULL; //vista and later
                     hr = pEnumWiaItem->Next(1, &pChildWiaItem, NULL);
-
-                    //
-                    // pEnumWiaItem->Next will return S_FALSE when the list is
-                    // exhausted, so check for S_OK before using the returned
-                    // value.
+                    //std::cout << "WiaDevice::findItem hr " << hr
+                    //          << " pChildWiaItem " << pChildWiaItem << std::endl;
                     //
                     if (S_OK == hr) {
-                        LONG lchldItemType = 0;
+                        LONG lchldItemType{};
                         hr = pChildWiaItem->GetItemType(&lchldItemType);
-                        //std::cout << "   " << std::hex << chldItemType << std::dec
-                        //  << ((chldItemType & WiaItemTypeImage) != 0 ? " image" : "")
+                        //std::cout << "   " << std::hex << lchldItemType 
+                        //  << " typeMask " << typeMask << std::dec
+                        //  << ((lchldItemType & typeMask) != 0 ? " match" : "")
                         //  << std::endl;
                         if (hr == S_OK && lchldItemType & typeMask) {
                             *pRetChildWiaItem = pChildWiaItem;
@@ -441,18 +479,11 @@ WiaDevice::findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaIt
                         }
                     }
                 }
-
-                //
-                // If the result of the enumeration is S_FALSE (which
-                // is normal), change it to S_OK.
-                //
+                // If the result of the enumeration is S_FALSE (which is normal), change it to S_OK.
                 if (S_FALSE == hr) {
                     hr = S_OK;
                 }
-
-                //
                 // Release the enumerator.
-                //
                 pEnumWiaItem->Release();
                 pEnumWiaItem = NULL;
             }
@@ -512,14 +543,27 @@ WiaDevice::buildScanProperties(
     map.insert(std::make_pair(PropertyBrightness, brightness));
     map.insert(std::make_pair(PropertyContrast, contrast));
     map.insert(std::make_pair(PropertyThreshold, threshold));
+    WiaValue ext;
+    ext.set("");    // see explanation https://learn.microsoft.com/en-us/windows-hardware/drivers/image/wia-raw-data-header
+    map.insert(std::make_pair(PropertyExtension, ext)); 
+    WiaValue fmt;
+    PROPVARIANT varFmt;
+    CLSID clsid{};
+    CoGetPSClsid(WiaImgFmt_RAWRGB, &clsid);
+    varFmt.vt = VT_CLSID;
+    varFmt.puuid = &clsid;  
+    fmt.set(varFmt); // use raw as always ;)
+    map.insert(std::make_pair(PropertyFormat, fmt));
+    
+    
     if (full) {
         int xMaxExtend = 2000.0;
         if (m_extendX.size() >= 2) {
-            xMaxExtend = std::get<int32_t>(m_extendX[0]);
+            xMaxExtend = m_extendX[0].get<int32_t>();
         }
         int yMaxExtend = 3000.0;
         if (m_extendY.size() >= 2) {
-            yMaxExtend = std::get<int32_t>(m_extendY[0]);
+            yMaxExtend = m_extendY[0].get<int32_t>();
         }
         //std::cout << "xMax " << xMaxExtend
         //          << " yMax "  << yMaxExtend << std::endl;
@@ -529,16 +573,16 @@ WiaDevice::buildScanProperties(
         //          << " " << m_scanPreview->getYEnd() << std::endl;
         int32_t x1 = static_cast<int32_t>(xRelStart * xMaxExtend);
         if (m_startX.size() >= 2) {
-            x1 = std::min(x1, std::get<int32_t>(m_startX[0]));
-            x1 = std::max(x1, std::get<int32_t>(m_startX[1]));
+            x1 = std::min(x1, m_startX[0].get<int32_t>());
+            x1 = std::max(x1, m_startX[1].get<int32_t>());
         }
         WiaValue xStart;
         xStart.set(convertX4DPI(x1, dpi));
         map.insert(std::make_pair(PropertyStartX, xStart));
         int32_t y1 = static_cast<int32_t>(yRelStart * yMaxExtend);
         if (m_startY.size() >= 2) {
-            y1 = std::min(y1, std::get<int32_t>(m_startY[0]));
-            y1 = std::max(y1, std::get<int32_t>(m_startY[1]));
+            y1 = std::min(y1, m_startY[0].get<int32_t>());
+            y1 = std::max(y1, m_startY[1].get<int32_t>());
         }
         WiaValue yStart;
         yStart.set(convertY4DPI(y1, dpi));
@@ -579,10 +623,10 @@ WiaDevice::readExtends(IWiaPropertyStorage *pWiaPropertyStorage)
             m_extendY = property->getRange(pWiaPropertyStorage);
         }
         if (property->getPropertyId() == PropertyResolutionX) {
-            horzResolution = std::get<int32_t>(property->getValue(pWiaPropertyStorage));
+            horzResolution = property->getValue(pWiaPropertyStorage).get<int32_t>();
         }
         if (property->getPropertyId() == PropertyResolutionY) {
-            vertResolution = std::get<int32_t>(property->getValue(pWiaPropertyStorage));
+            vertResolution = property->getValue(pWiaPropertyStorage).get<int32_t>();
         }
     }
 }

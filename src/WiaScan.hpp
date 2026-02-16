@@ -22,8 +22,9 @@
 #include <list>
 #include <memory>
 #include <windows.h>
-#include <wia.h>
 
+// use local wia.h as workaround if the msys2 version is filled in, use <wia.h>
+#include "wia.h"
 #include "WiaDataCallback.hpp"
 #include "WiaProperty.hpp"
 #include "WiaDevice.hpp"
@@ -38,7 +39,8 @@ public:
     HRESULT enumerateWiaDevices();
     HRESULT readSomeWiaProperties(IWiaPropertyStorage *pWiaPropertyStorage);
 
-    IWiaDevMgr* getWiaDevMgr() {
+    IWiaDevMgr2* getWiaDevMgr() 
+    {
         return m_pWiaDevMgr;
     }
     std::vector<std::shared_ptr<WiaDevice>> getDevices() {
@@ -46,7 +48,7 @@ public:
     }
 private:
     std::vector<std::shared_ptr<WiaDevice>> m_devices;
-    IWiaDevMgr* m_pWiaDevMgr{nullptr};
-
+    IWiaDevMgr2* m_pWiaDevMgr{nullptr};
+    
 };
 

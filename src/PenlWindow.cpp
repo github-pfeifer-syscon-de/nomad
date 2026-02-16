@@ -152,7 +152,7 @@ PenlWindow::draw(const Cairo::RefPtr<Cairo::Context>& cr, std::list<std::shared_
         for (auto pnt : path) {
             double localX{pnt->getX()};
             double localY{pnt->getY()};
-            cr->arc(localX, localY, 3.0, 0.0, M_PI * 2.0);
+            cr->arc(localX, localY, 3.0, 0.0, G_PI * 2.0);
         }
     }
     cr->stroke();

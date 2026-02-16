@@ -19,7 +19,7 @@
 #include <StringUtils.hpp>
 #include <ApplicationSupport.hpp>
 
-#include "config.h"
+#include "nomad_config.h"
 
 #include "ImageReader.hpp"
 

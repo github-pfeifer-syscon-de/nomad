@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 
-#include "config.h"
+#include "nomad_config.h"
 
 class ApplicationSupport;
 class ImageFileChooser;

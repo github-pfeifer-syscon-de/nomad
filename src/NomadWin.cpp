@@ -34,7 +34,7 @@
 #endif
 #include "PenlWindow.hpp"
 #include "ImageReader.hpp"
-#include "config.h"
+#include "nomad_config.h"
 
 #undef NOMADWIN_DEBUG
 
@@ -137,6 +137,11 @@ NomadWin::timeout()
     return false;   // do not repeat
 }
 
+void 
+NomadWin::show_error(const Glib::ustring& message)
+{
+    m_appSupport.showError(message);    
+}
 
 Gtk::Menu*
 NomadWin::build_popup(int x, int y)

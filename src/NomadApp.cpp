@@ -20,7 +20,7 @@
 #include <exception>
 #include <ImageView.hpp>
 
-#include <config.h>
+#include "nomad_config.h"
 #include "NomadApp.hpp"
 #include "NomadWin.hpp"
 #include "EditMode.hpp"

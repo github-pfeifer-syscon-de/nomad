@@ -21,7 +21,6 @@
 #include <gtkmm.h>
 #include <thread>
 
-#include "GenericCallback.hpp"
 class WiaValue;
 class NomadWin;
 

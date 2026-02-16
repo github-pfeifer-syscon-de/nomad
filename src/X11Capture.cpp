@@ -25,7 +25,7 @@
 #include <gtk/gtk.h>
 
 
-#include "config.h"
+#include "nomad_config.h"
 
 
 #include "Capture.hpp"

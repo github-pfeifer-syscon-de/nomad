@@ -20,7 +20,7 @@
 
 #include <gtkmm.h>
 
-#include <Shape.hpp>
+#include "Shape.hpp"
 
 // shape that defines it's size by a scale (relative to output size)
 class ScaleableShape

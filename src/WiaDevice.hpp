@@ -20,14 +20,16 @@
 
 #include <glibmm.h>
 #include <windows.h>
-#include <wia.h>
 #include <list>
 #include <map>
 #include <memory>
 
+// use local wia.h as workaround if the msys2/wine version has been filled in, use <wia.h>
+#include "wia.h"
 #include "WiaDataCallback.hpp"
 
 class WiaValue;
+class WiaValue2;
 class WiaProperty;
 class WiaScan;
 class ScanPreview;
@@ -43,9 +45,11 @@ public:
     std::list<std::shared_ptr<WiaProperty>> getProperties();
     Glib::ustring getDeviceId();
     Glib::ustring getDeviceName();
-    HRESULT findItem(IWiaItem *pWiaItem, LONG typeMask, IWiaItem** pRetChildWiaItem);
-    IWiaItem* getWiaItem();
+    HRESULT findItem(IWiaItem2 *pWiaItem, LONG typeMask, IWiaItem2** pRetChildWiaItem);
+    IWiaItem2* getWiaItem();
     static constexpr auto PropertyBits = 4104u;
+    static constexpr auto PropertyFormat = 4106u;
+    static constexpr auto PropertyExtension = 4123u;
     static constexpr auto PropertyResolutionX = 6147u;
     static constexpr auto PropertyResolutionY = 6148u;
     static constexpr auto PropertyStartX = 6149u;
@@ -69,22 +73,22 @@ public:
             , double yRelEnd);  // arkward but wia and gtkmm will never be best friends ;(
 
 protected:
-    HRESULT createWiaDevice( IWiaDevMgr *pWiaDevMgr, BSTR bstrDeviceID );
-    HRESULT transferWiaItem(IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties);
-    void getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const Glib::ustring& section);
+    HRESULT createWiaDevice( IWiaDevMgr2 *pWiaDevMgr, BSTR bstrDeviceID );
+    HRESULT transferWiaItem(IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties);
+    void getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const std::string& section);
     int32_t convertX4DPI(int32_t y1, int32_t dpi);
     int32_t convertY4DPI(int32_t y1, int32_t dpi);
 private:
     WiaScan* m_winScan;
-    IWiaItem* m_pWiaDevice;
+    IWiaItem2* m_pWiaDevice;
     Glib::ustring m_devId;
     Glib::ustring m_devName;
     Glib::ustring m_devDescr;
     std::list<std::shared_ptr<WiaProperty>> m_properties;
-    std::vector<WiaValue> m_startX;
-    std::vector<WiaValue> m_startY;
-    std::vector<WiaValue> m_extendX;
-    std::vector<WiaValue> m_extendY;
+    std::vector<WiaValue2> m_startX;
+    std::vector<WiaValue2> m_startY;
+    std::vector<WiaValue2> m_extendX;
+    std::vector<WiaValue2> m_extendY;
     int32_t horzResolution{300};
     int32_t vertResolution{300};
 };

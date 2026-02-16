@@ -22,7 +22,7 @@
 #include <gtkmm.h>
 #include <memory>
 
-#include "config.h"
+#include "nomad_config.h"   // use common configured
 
 //   you probably want to adapt this (relative to home dir):
 static constexpr const char* RAW_FILEPATH{"Pictures/_DSC9438.NEF"};

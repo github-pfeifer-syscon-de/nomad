@@ -19,6 +19,7 @@
 #include <iostream>
 #include <sstream>      // std::ostringstream
 #include <iomanip>
+#include <vector>
 
 #include "WiaProperty.hpp"
 #include "StringUtils.hpp"
@@ -102,15 +103,15 @@ prop_list_value_uint(PROPVARIANT* ppv, uint32_t index)
     return ret;
 }
 
-static Glib::ustring
+static BSTR
 prop_list_value_str(PROPVARIANT* ppv, uint32_t index)
 {
-    Glib::ustring ret;
+    BSTR ret;
     if (index < WIA_PROP_LIST_COUNT(ppv)) {
         uint32_t vtAttr = ppv->vt & VT_TYPEMASK;
         switch (vtAttr) {
             case VT_BSTR:
-                ret = StringUtils::utf8_encode(ppv->cabstr.pElems[WIA_LIST_VALUES + index]);
+                ret = ppv->cabstr.pElems[WIA_LIST_VALUES + index];
                 break;
             default:
                 //ret = Glib::ustring("%d", vtAttr);
@@ -177,10 +178,25 @@ WiaValue::set(const PROPVARIANT& propvar)
     }
     m_vt = propvar.vt;
     //std::cout << "WiaValue::set vt " << m_vt << " " << WiaProperty::convertVarTypeToString(m_vt)
-    //          << " int32_t " << (std::holds_alternative<int32_t>(*this) ? "y" : "n")
-    //          << " uint32_t " << (std::holds_alternative<uint32_t>(*this) ? "y" : "n") << std::endl;
+    //          << " int32_t " << (std::holds_alternative<int32_t>(*this) 
+    //                            ? Glib::ustring::sprintf("int<32> %d", std::get<int32_t>(*this))
+    //                            : Glib::ustring(""))
+    //          << " uint32_t " << (std::holds_alternative<uint32_t>(*this) 
+    //                            ? Glib::ustring::sprintf("utint<32> %ud", std::get<uint32_t>(*this))
+    //                            : Glib::ustring("")) << std::endl;
 }
 
+
+BSTR
+WiaValue::toBstr(const char* str) 
+{
+    const char* noNullString = str != nullptr  ? str : "";
+    int wchars_num = MultiByteToWideChar( CP_UTF8 , 0 , noNullString, -1, NULL , 0 );
+    std::cout << "WiaValue::toBstr in \"" << noNullString << "\" wchars_num " << wchars_num << std::endl;
+    BSTR bstr = SysAllocStringByteLen(nullptr, wchars_num * 2);            
+    MultiByteToWideChar( CP_UTF8 , 0 , noNullString , -1, bstr , wchars_num );
+    return bstr;
+}
 
 bool
 WiaValue::get(PROPVARIANT& propvar)
@@ -228,9 +244,21 @@ WiaValue::get(PROPVARIANT& propvar)
                 propvar.ulVal = std::get<uint32_t>(*this);
             }
             break;
+        case VT_BSTR:
+            set = std::holds_alternative<Glib::ustring>(*this);            
+            if (set) {                                                
+                propvar.bstrVal = toBstr(std::get<Glib::ustring>(*this).c_str());
+            }
+            break;            
+        default:
+            std::cout << "WiaValue::get m_vt " << m_vt << " not handled!" << std::endl;
+            break;
     }
     if (set) {
         propvar.vt = m_vt;
+    }
+    else {
+        std::cout << "WiaValue::get m_vt " << m_vt << " not set!" << std::endl;
     }
     return set;
     // at the moment other types are unused ...
@@ -250,6 +278,117 @@ WiaValue::set(int32_t val)
     emplace<int32_t>(val);
 }
 
+void
+WiaValue::set(const Glib::ustring& val)
+{
+    m_vt = VT_BSTR;
+    emplace<Glib::ustring>(val); 
+}
+
+
+WiaValue2::WiaValue2(uint32_t vtAttr, int32_t i)
+{
+    
+    m_propvar.vt = vtAttr;
+    switch (vtAttr) {
+        case VT_I1:
+            m_propvar.iVal = i;       // how to place ?
+            break;
+        case VT_I2:
+            m_propvar.iVal = i;    
+            break;
+        case VT_I4:
+            m_propvar.intVal = i;    
+            break;
+        default:
+            std::cout <<  "WiaValue2::WiaValue2 mismatch type int32_t vt " << m_propvar.vt << std::endl;
+            break;            
+    }
+}
+
+WiaValue2::WiaValue2(uint32_t vtAttr, uint32_t u)
+{
+    
+    m_propvar.vt = vtAttr;
+    switch (vtAttr) {
+        case VT_UI1:
+            m_propvar.uiVal = u;       // how to place ?
+            break;
+        case VT_UI2:
+            m_propvar.uiVal = u;    
+            break;
+        case VT_UI4:
+            m_propvar.uintVal = u;    
+            break;
+        default:
+            std::cout <<  "WiaValue2::WiaValue2 mismatch type uint32_t vt " << m_propvar.vt << std::endl;
+            break;            
+    }
+}
+
+WiaValue2::WiaValue2(uint32_t vtAttr, BSTR str)
+{
+    m_propvar.vt = vtAttr;
+    m_propvar.bstrVal = str;
+}
+
+WiaValue2::WiaValue2(uint32_t vtAttr, double val)
+{
+    m_propvar.vt = vtAttr;
+    switch (vtAttr) {
+        case VT_R4:
+            m_propvar.fltVal = val;       
+            break;
+        case VT_R8:
+            m_propvar.dblVal = val;    
+            break;
+        default:
+            std::cout <<  "WiaValue2::WiaValue2 mismatch type double vt " << m_propvar.vt << std::endl;
+            break;            
+    }
+}
+
+void 
+WiaValue2::query(IWiaPropertyStorage *pWiaPropertyStorage, PROPID propid)
+{
+    PROPVARIANT propvar;
+    PropVariantInit(&propvar);
+    PROPSPEC propspec{
+          .ulKind = PRSPEC_PROPID
+        , .propid = propid  
+    };
+    const auto c_nPropertyCount{1};
+    HRESULT hr = pWiaPropertyStorage->ReadMultiple(c_nPropertyCount, &propspec, &propvar);
+    if (SUCCEEDED(hr)) {
+        m_propvar = propvar;
+        // Free the returned PROPVARIANTs
+        // 
+        FreePropVariantArray(c_nPropertyCount, &propvar);
+    }
+    else {
+        std::cout << "WiaValue2::query ReadMultiple  error " << hr 
+                  << " propid " << propid << std::endl;
+    }
+}
+
+void 
+WiaValue2::set(const PROPVARIANT& propvar)
+{
+    m_propvar = propvar;
+}
+
+const PROPVARIANT&
+WiaValue2::get()
+{
+    return m_propvar;
+}
+
+VARTYPE 
+WiaValue2::getVt()
+{
+    return m_propvar.vt;
+}
+
 WiaProperty::WiaProperty(STATPROPSTG& nextWiaPropertyStorage)
 {
     if( NULL != nextWiaPropertyStorage.lpwstrName ) {
@@ -265,7 +404,7 @@ WiaProperty::getPropertyId()
 }
 
 // get list/range depending on flags
-std::vector<WiaValue>
+std::vector<WiaValue2>
 WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
 {
     PROPSPEC propspec;
@@ -277,39 +416,38 @@ WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
     auto c_nPropertyAttributeCount = 1;
     ULONG flags = 0;
     HRESULT hr = pWiaPropertyStorage->GetPropertyAttributes(c_nPropertyAttributeCount, &propspec, &flags, &propAttribute);
-    std::vector<WiaValue> ret;
+    std::vector<WiaValue2> ret;
     if (SUCCEEDED(hr)) {
         //ret += Glib::ustring::sprintf("   attribute %s flags %s ", convertVarTypeToString(propAttribute.vt & VT_TYPEMASK), getFlags(flags));
         // only these cases are useful for us
         if ((flags & WIA_PROP_LIST) || (flags & WIA_PROP_RANGE)) {
             //ret += Glib::ustring::sprintf("[%d]", WIA_PROP_LIST_COUNT(&propAttribute));
+            ret.reserve(WIA_PROP_LIST_COUNT(&propAttribute));
             for (uint32_t i = 0; i < WIA_PROP_LIST_COUNT(&propAttribute); ++i) {
                 uint32_t vtAttr = propAttribute.vt & VT_TYPEMASK;
                 switch (vtAttr) {
+                    case VT_I1:
                     case VT_I2:
                     case VT_I4:
                         {
-                            int32_t ival = prop_list_value_int(&propAttribute, i);
-                            WiaValue val;
-                            val.emplace<int32_t>(ival);
-                            ret.push_back(val);
+                        int32_t ival = prop_list_value_int(&propAttribute, i);
+                        WiaValue2 val{vtAttr, ival};
+                        ret.push_back(val);
                         }
                         break;
                     case VT_UI1:
                     case VT_UI2:
                     case VT_UI4:
                         {
-                            uint32_t uval = prop_list_value_uint(&propAttribute, i);
-                            WiaValue val;
-                            val.emplace<uint32_t>(uval);
-                            ret.push_back(val);
+                        uint32_t uval = prop_list_value_uint(&propAttribute, i);
+                        WiaValue2 val{vtAttr, uval};
+                        ret.push_back(val);
                         }
                         break;
                     case VT_BSTR:
                         {
                         auto ustr = prop_list_value_str(&propAttribute, i);
-                        WiaValue val;
-                        val.emplace<Glib::ustring>(ustr);
+                        WiaValue2 val{vtAttr, ustr};
                         ret.push_back(val);
                         }
                         break;
@@ -317,8 +455,7 @@ WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
                     case VT_R8:
                         {
                         auto dval = prop_list_value_double(&propAttribute, i);
-                        WiaValue val;
-                        val.emplace<double>(dval);
+                        WiaValue2 val{vtAttr, dval};
                         ret.push_back(val);
                         }
                         break;
@@ -338,27 +475,11 @@ WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
 
 
 // this will also return unsigned values (which may fail if the sign bit will be used)
-WiaValue
+WiaValue2
 WiaProperty::getValue(IWiaPropertyStorage *pWiaPropertyStorage)
 {
-    PROPVARIANT propvar;
-    PropVariantInit(&propvar);
-    PROPSPEC propspec;
-    propspec.ulKind = PRSPEC_PROPID;
-    propspec.propid = m_propid;
-    WiaValue value;
-
-    auto c_nPropertyCount = 1;
-    HRESULT hr = pWiaPropertyStorage->ReadMultiple(c_nPropertyCount, &propspec, &propvar);
-    if (SUCCEEDED(hr)) {
-        value.set(propvar);
-        // Free the returned PROPVARIANTs
-        //
-        FreePropVariantArray(c_nPropertyCount, &propvar);
-    }
-    else {
-        std::cout << "Error " << hr << " getValue ReadMultiple " << std::endl;
-    }
+    WiaValue2 value;
+    value.query(pWiaPropertyStorage, m_propid);
     return value;
 }
 

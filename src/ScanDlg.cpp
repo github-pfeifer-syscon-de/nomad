@@ -21,6 +21,8 @@
 #include <vector>
 #include <StringUtils.hpp>
 #include <unistd.h>
+#include <ImageFileChooser.hpp>
+#include "nomad_config.h"
 #ifdef USE_PDF
 #include <PdfExport.hpp>
 #include <PdfPage.hpp>
@@ -33,7 +35,7 @@ namespace std
     using ::close;      // see <cstdio> move these to a namespace
 }
 
-#include "config.h"
+
 #include "ScanDlg.hpp"
 #include "WiaScan.hpp"
 #include "WiaProperty.hpp"
@@ -94,12 +96,12 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
         save->signal_clicked().connect(
         [this] () {
             try {
-                std::vector<Glib::ustring> types;
+                std::vector<std::string> types;
                 types.push_back("png");
                 #ifdef USE_PDF
                 types.push_back("pdf");
                 #endif
-                NomadFileChooser file_chooser(*m_nomadWin, true, types);
+                ImageFileChooser file_chooser(*m_nomadWin, true, types);
                 if (file_chooser.run() == Gtk::ResponseType::RESPONSE_ACCEPT) {
                     if (!saveImage(file_chooser.get_filename())) {
                         m_nomadWin->show_error(Glib::ustring::sprintf("Unable to save file %s", file_chooser.get_filename()));
@@ -192,7 +194,7 @@ ScanDlg::exportPdf(const Glib::ustring& file)
     //savePng(tempName);
     for (auto pngImg : m_pages) {
         auto page = pdfExport->createPage();
-        page->setFont(helv, 12);
+        page->setFont(helv);
         auto img = std::make_shared<psc::pdf::PdfImage>(pdfExport);
         img->loadPng(pngImg->get_path());
         std::cout << " width " << img->getWidth()
@@ -234,7 +236,7 @@ ScanDlg::deviceChanged()
 {
     std::shared_ptr<WiaDevice> activeDev = getActiveDevice();
     if (activeDev) {
-        IWiaItem *pChildWiaItem = nullptr;
+        IWiaItem2 *pChildWiaItem = nullptr;
         HRESULT hr = activeDev->findItem(activeDev->getWiaItem(), WiaItemTypeImage, &pChildWiaItem);
         if (SUCCEEDED(hr)) {
             IWiaPropertyStorage *pWiaPropertyStorage = NULL;
@@ -278,18 +280,12 @@ ScanDlg::setupSpinner(
                 auto values = property->getRange(pWiaPropertyStorage);
                 if (values.size() >= 2) {
                     auto val = property->getValue(pWiaPropertyStorage);
-                    if (std::holds_alternative<int32_t>(val)) {
-                        int min = std::get<int32_t>(values[1]);
-                        int max = std::get<int32_t>(values[0]);
-
-                        min = std::max(min, 50);    // lowest values e.g.1 will be useless
-                        spinner->set_range(min, max);
-                        spinner->set_value(std::get<int32_t>(val));
-                        spinner->set_increments(50, 100);
-                    }
-                    else {
-                        std::cout << "ScanDlg::setupSpinner wrong type " << val.getVt() << std::endl;
-                    }
+                    int min = values[1].get<int32_t>();
+                    int max = values[0].get<int32_t>();
+                    min = std::max(min, 50);    // lowest values e.g.1 will be useless
+                    spinner->set_range(min, max);
+                    spinner->set_value(val.get<int32_t>());
+                    spinner->set_increments(50, 100);
                 }
                 break;
             }
@@ -313,19 +309,14 @@ ScanDlg::setupScale(
                 auto values = property->getRange(pWiaPropertyStorage);
                 if (values.size() >= 2) {
                     auto val = property->getValue(pWiaPropertyStorage);
-                    if (std::holds_alternative<int32_t>(val)) {
-                        int min = std::get<int32_t>(values[1]);
-                        int max = std::get<int32_t>(values[0]);
+                    int min = values[1].get<int32_t>();
+                    int max = values[0].get<int32_t>();
 
-                        if (max < 255) {    // as it seems the range is interpreted differently for brightness&contrast
-                            min = -max;
-                        }
-                        scale->set_range(min, max);
-                        scale->set_value(std::get<int32_t>(val));
+                    if (max < 255) {    // as it seems the range is interpreted differently for brightness&contrast
+                        min = -max;
                     }
-                    else {
-                        std::cout << "ScanDlg::setupScale wrong type " << val.getVt() << std::endl;
-                    }
+                    scale->set_range(min, max);
+                    scale->set_value(val.get<int32_t>());
                 }
                 break;
             }
