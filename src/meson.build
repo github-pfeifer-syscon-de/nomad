@@ -35,8 +35,6 @@ if target_machine.system() == 'windows'
         , 'WiaProperty.cpp'
         , 'WiaDevice.cpp'
         , 'WiaScan.cpp'
-        , 'dlldata.c'
         , 'wia_lh_i.c'         
-        , 'wia_lh_p.c' 
         )
 endif

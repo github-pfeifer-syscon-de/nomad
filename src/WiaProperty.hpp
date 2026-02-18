@@ -28,32 +28,11 @@
 #include "wia.h"
 
 
-// incomplete implementation of variant value holder
-class WiaValue
-: public std::variant<int32_t, int64_t, uint32_t, uint64_t, double, Glib::ustring, bool>
-{
-public:
-    WiaValue() = default;
-    WiaValue(const WiaValue& other) = default;
-    WiaValue& operator= (const WiaValue& other) = default;
-    ~WiaValue() = default;
-
-    void set(const PROPVARIANT& propvar);
-    bool get(PROPVARIANT& propvar);
-    VARTYPE getVt();
-    void set(int32_t val);
-    void set(const Glib::ustring& val);
-    // use this to place in variant otherwise needs free!
-    BSTR toBstr(const char* str) ;
-
-private:
-    VARTYPE m_vt{0};
-};
 
 class WiaValue2
 {
 public:
-    WiaValue2() = default;
+    WiaValue2();
     WiaValue2(uint32_t vtAttr, int32_t i);
     WiaValue2(uint32_t vtAttr, uint32_t u);
     WiaValue2(uint32_t vtAttr, BSTR str);
@@ -63,7 +42,7 @@ public:
     WiaValue2& operator= (const WiaValue2& other) = default;
     ~WiaValue2() = default;
     
-    void query(IWiaPropertyStorage *pWiaPropertyStorage, PROPID propid);
+    BSTR toBstr(const char* str);
     void set(const PROPVARIANT& propvar);
     const PROPVARIANT& get();
     VARTYPE getVt();
@@ -109,6 +88,26 @@ private:
     PROPVARIANT m_propvar{};
 };
 
+class WiaAttribute
+{
+public:
+    WiaAttribute(IWiaPropertyStorage *pWiaPropertyStorage, uint32_t propid);
+    ~WiaAttribute();
+    
+    Glib::ustring info();
+    bool isList();
+    bool isRange();
+protected:
+    static Glib::ustring getFlags(ULONG flags);
+
+private:
+    HRESULT m_hr;
+    PROPVARIANT m_propAttribute;
+    static constexpr auto c_nPropertyAttributeCount{1};
+    ULONG m_flags;    
+    std::vector<int32_t> m_values;
+};
+
 class WiaProperty
 {
 public:
@@ -125,10 +124,9 @@ public:
     static std::string dump(const guint8 *data, gsize size);
 protected:
     Glib::ustring convertValueToString( const PROPVARIANT &propvar);
-    Glib::ustring getFlags(ULONG flags);
-    Glib::ustring decodeAttribute(IWiaPropertyStorage *pWiaPropertyStorage);
 
 private:
     Glib::ustring m_name;
     PROPID m_propid;
+    WiaValue2 m_value;
 };

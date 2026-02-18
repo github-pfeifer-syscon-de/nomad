@@ -31,7 +31,7 @@
 WorkThread::WorkThread(Glib::Dispatcher& dispatcher
                         , Glib::Dispatcher& completed
                         , const Glib::ustring& deviceId
-                        , const std::map<uint32_t, WiaValue>& properties)
+                        , const std::map<uint32_t, int32_t>& properties)
 : m_dispatcher{dispatcher}
 , m_completed{completed}
 , m_deviceId{deviceId}
@@ -285,14 +285,14 @@ ScanPreview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
 }
 
 void
-ScanPreview::create(std::array<int,2> size, const Gdk::Color& background)
+ScanPreview::create(int width, int height, const Gdk::Color& background)
 {
     m_pixbuf = Gdk::Pixbuf::create(
             Gdk::Colorspace::COLORSPACE_RGB
             , true
             , 8
-            , size[0]
-            , size[1]);
+            , width
+            , height);
     guint32 pixel = (background.get_red() >> 8u) << 24u
                   | (background.get_green() >> 8u) << 16u
                   | (background.get_blue())      // eliminated >> 8u) << 8u as this will be a no op
@@ -303,92 +303,107 @@ ScanPreview::create(std::array<int,2> size, const Gdk::Color& background)
 }
 
 void
+ScanPreview::transferRow(uint8_t* pixSrc, uint32_t yPos, uint32_t transferPixels)
+{
+    auto pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels()) + (yPos) * (m_pixbuf->get_rowstride() / sizeof(uint32_t));
+    for (size_t x = 0; x < transferPixels; ++x) {
+        //   windows   BGR?
+        uint32_t rgb;
+        const auto callback = m_worker->getDataCallback();
+        const auto bytePerPixel = callback->getBytePerPixel();
+        if (bytePerPixel >= 3) {       // discard alpha in case it is there...
+            rgb = (pixSrc[0] << 16u) | (pixSrc[1] << 8u) | pixSrc[2];
+        }
+        else {
+            uint8_t gray;
+            if (bytePerPixel == 1)  {   // grayscale
+                gray = *pixSrc;
+            }
+            else {                      // b&w
+                auto bit = pixSrc[x >> 3u] & (0x80u >> (x & 0x7u));
+                gray = bit != 0 ? 0xffu : 0u;
+            }
+            rgb = (gray << 16u) | (gray << 8u) | gray;
+        }
+        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
+        *pixData = 0xff000000u | rgb;
+        pixSrc += bytePerPixel;
+        ++pixData; // next pixel
+    }
+}
+
+
+void
 ScanPreview::scanProgress()
 {
     if (m_worker) {
-        uint32_t transferedSize = 0;
-        int32_t transferedPercent = 0;
-        uint32_t transfereAlloc = 0;
-//        uint8_t* p = m_worker->getDataCallback()->getDataTransfered(&transferedSize, &transferedPercent, &transfereAlloc);
-//        std::cout  << "percent " << transferedPercent
-//                   << " size " << transferedSize
-//                   << std::endl;
-//        if (p && transferedSize >= sizeof(BITMAPINFOHEADER)) {
-//            auto bi = reinterpret_cast<BITMAPINFOHEADER*>(p);
-//            if (m_initScan) {
-//                if (bi->biWidth >= 0) {
-//                    std::array<int,2> size {std::abs(bi->biWidth),std::abs(bi->biHeight)};
-//                    Gdk::Color color;
-//                    color.set("#000");
-//                    create(size, color);
-//                    m_initScan = false;
-//                    m_RowLast = 0;
-//                    std::cout << "Got scan size "
-//                          << bi->biWidth << " " << bi->biHeight
-//                          << " bits " << bi->biBitCount
-//                          << " compress " << std::hex << bi->biCompression << std::dec
-//                          << " rowstride " << m_pixbuf->get_rowstride()
-//                          << std::endl;
-//                }
-//                else {
-//                    //std::cout << dump(p, 64) << std::endl;
-//                    std::cout << "Bitmap wrong info header " << std::endl;
-//                }
-//            }
-//            else {
-//                // we get width 2550 height -3501 bits 24 compress 0
-//                // the last packet will be offs 26629000 len 160692
-//                //   the first 40+bytes will be bitmap-header
-//                //   the byteStrideSize should be 7652 = (2550 * 3) round up to 4
-//                //   so 26789652 / 7652 will give use the expected 3501
-//                int32_t height = std::abs(bi->biHeight);
-//                bool bmpInverseHeight = bi->biHeight < 0;
-//                int32_t width = std::abs(bi->biWidth);
-//                uint32_t byteRowStride = ((width * bi->biBitCount + 31) / 32) * 4;
-//                uint32_t headerSize = (transfereAlloc) - (byteRowStride * height - 1); // the size of header e.g. for gray is larger than just sizeof(BITMAPINFOHEADER)
-//                uint8_t* bmpData = p + headerSize;
-//                uint32_t* pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels());
-//                m_bytePerPixel = bi->biBitCount / 8;
-//                int32_t uptoRow = std::min(static_cast<int32_t>((transferedSize - headerSize) / byteRowStride), height);
-//                std::cout << "uptoRow " << uptoRow
-//                          << " byte stride " << byteRowStride << std::endl;
-//                for (int32_t y = m_RowLast; y <= uptoRow; ++y) {
-//                    int32_t yd = y;
-//                    if (!bmpInverseHeight) {
-//                        yd = (height-1) - y;
-//                    }
-//                    auto rows = bmpData + (y * byteRowStride);
-//                    auto rowd = pixData + (yd * m_pixbuf->get_rowstride() / 4);
-//                    //std::cout << "row " << y << std::endl;
-//                    for (int32_t x = 0; x < width; ++x) {
-//                        //  windows   BGR?
-//                        uint32_t rgb;
-//                        if (m_bytePerPixel >= 3) {       // discard alpha in case it is there...
-//                            rgb = (rows[0] << 16u) | (rows[1] << 8u) | rows[2];
-//                        }
-//                        else {
-//                            uint8_t gray;
-//                            if (m_bytePerPixel == 1)  {   // grayscale
-//                                gray = *rows;
-//                            }
-//                            else {                      // b&w
-//                                auto bit = rows[x >> 3u] & (0x80u >> (x & 0x7u));
-//                                gray = bit != 0 ? 0xffu : 0u;
-//                            }
-//                            rgb = (gray << 16u) | (gray << 8u) | gray;
-//                        }
-//                        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
-//                        *rowd = 0xff000000u | rgb;
-//                        ++rowd;
-//                        rows += m_bytePerPixel;
-//                    }
-//                }
-//                m_scaled.reset(); // need to refresh
+        const auto callback = m_worker->getDataCallback();
+        if (callback->getWidth() == 0
+         || callback->getHeight() == 0) {   // not yet ready
+            std::cout << "ScanPreview::scanProgress no data " << std::endl;
+            return;
+        }
+        if (!m_pixbuf) {
+            Gdk::Color color;
+            color.set("#000");
+            create(callback->getWidth(), callback->getHeight(), color);
+        }
+        auto& queue = callback->getQueue();
+        std::shared_ptr<WiaData> item;
+        while (queue.try_pop(item)) {
+            const auto srcBytesPerRow = callback->getBytePerRow();
+            const auto srcBytePerPixel = callback->getBytePerPixel();
+            uint32_t yPos = m_dataOffs / srcBytesPerRow;
+            uint8_t* pixSrc = item->getData();            
+            if (m_reaminder) {  // as the packets don't care of row or pixel border we have to connect those pieces
+                uint32_t xBytes = m_reaminder->getUsed();
+                std::cout << "ScanPreview::scanProgress"
+                           << " dataOffs " << m_dataOffs
+                           << " used " << m_reaminder->getUsed() 
+                           << " ypos " << yPos << std::endl;
+                auto remData = m_reaminder->getData();
+                std::copy(pixSrc, pixSrc + xBytes, remData + xBytes);
+                transferRow(pixSrc, yPos, callback->getWidth());
+                pixSrc += xBytes;
+                ++yPos;
+                m_reaminder.reset();
+            }                        
+            const uint32_t srcDataSize = item->getBytesSize();
+            uint32_t pixCnt = srcDataSize / srcBytePerPixel;
+            std::cout << "ScanPreview::scanProgress"
+                      << " item size " << srcDataSize
+                      << " ypos " << yPos << std::endl;
+            while (pixCnt >= callback->getWidth()) {
+                //std::cout << "ScanPreview::scanProgress"
+                //          << " y " << y + yPos
+                //          << " pixcnt " << pixCnt
+                //          << " transf " << transferPixels << std::endl;
+                transferRow(pixSrc, yPos, callback->getWidth());
+                pixCnt -= callback->getWidth();
+                pixSrc += srcBytesPerRow;
+                ++yPos;
+                if (yPos >= callback->getHeight()) {
+                    std::cout << "Got ypos " << yPos << " break!" << std::endl;
+                    pixCnt = 0;
+                    break;
+                }
+            }
+            std::cout << "ScanPreview::scanProgress"
+                      << " pixCnt " << pixCnt << std::endl;
+            if (pixCnt > 0) {
+                size_t remBytes = pixCnt * srcBytePerPixel;
+                m_reaminder = std::make_shared<WiaData>(srcBytesPerRow);
+                uint8_t* remData = m_reaminder->getData();
+                std::copy(pixSrc, pixSrc + remBytes, remData);
+                m_reaminder->setUsed(remBytes);
+            }
+            m_dataOffs += srcDataSize;
+        }
+        callback->resetPending();
+        m_scaled.reset(); // need to refresh
 //                //queue_draw_area(0, m_RowLast, bi->biWidth, uptoRow - m_RowLast);
-//                queue_draw();   // as the view is scaled no direct relationship...
+        queue_draw();   // as the view is scaled no direct relationship...
 //                m_RowLast = uptoRow;
-//            }
-//        }
     }
     else {
         std::cout << "missing callback!" << std::endl;
@@ -399,7 +414,7 @@ void
 ScanPreview::cleanup()
 {
     // use member so we wont fail on destruction of thread and can keep transfer
-    if (m_workThread != nullptr) {
+    if (m_workThread) {
         if (m_workThread->joinable()) {
             std::cout << "Joining ..." << std::endl;
             m_workThread->join();   // wait for previous
@@ -412,10 +427,11 @@ ScanPreview::cleanup()
         delete m_worker;
         m_worker = nullptr;
     }
+    m_dataOffs = 0l;
 }
 
 void
-ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>& properties)
+ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, int32_t>& properties)
 {
     cleanup();
     if (m_workThread == nullptr) {
@@ -455,18 +471,17 @@ ScanPreview::savePng(const Glib::ustring& file)
 {
     bool ret = false;
     if (m_pixbuf) {
-        if (m_bytePerPixel >= 3) {
-            m_pixbuf->save(file, "png");
-            ret = true;
-        }
-        else if (m_bytePerPixel == 1){
-            ImageUtils::grayscalePng(m_pixbuf, file);
-            ret = true;
-        }
-        else {
-            ImageUtils::blackandwhitePng(m_pixbuf, file);
-            ret = true;
-        }
+        m_pixbuf->save(file, "png");
+        ret = true;
+        //}
+        //else if (m_bytePerPixel == 1){
+        //    ImageUtils::grayscalePng(m_pixbuf, file);
+        //    ret = true;
+        //}
+        //else {
+        //    ImageUtils::blackandwhitePng(m_pixbuf, file);
+        //    ret = true;
+        //}
     }
     return ret;
 }

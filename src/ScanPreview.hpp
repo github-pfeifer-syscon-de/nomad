@@ -22,6 +22,8 @@
 #include <thread>
 
 class WiaValue;
+class WiaValue2;
+class WiaData;
 class NomadWin;
 
 #ifdef __WIN32__
@@ -35,7 +37,7 @@ public:
             Glib::Dispatcher& dispatcher
             , Glib::Dispatcher& completed
             , const Glib::ustring& deviceId
-            , const std::map<uint32_t, WiaValue>& properties);
+            , const std::map<uint32_t, int32_t>& properties);
     virtual ~WorkThread();
     void run();
     WiaDataCallback* getDataCallback();
@@ -46,7 +48,7 @@ private:
     WiaDataCallback* m_pCallback;
     bool m_result{false};
     Glib::ustring m_deviceId;
-    std::map<uint32_t, WiaValue> m_properties;
+    std::map<uint32_t, int32_t> m_properties;
 
 };
 #endif
@@ -59,7 +61,7 @@ public:
     explicit ScanPreview(const ScanPreview& orig) = delete;
     virtual ~ScanPreview();
 
-    void scan(const Glib::ustring& devId, const std::map<uint32_t, WiaValue>& properties);
+    void scan(const Glib::ustring& devId, const std::map<uint32_t, int32_t>& properties);
     inline double getXStart() {
         return m_xstart;
     }
@@ -82,13 +84,14 @@ public:
 protected:
     void scanProgress();
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx);
-    void create(std::array<int,2> size, const Gdk::Color& background);
+    void create(int width, int height, const Gdk::Color& background);
     double convertRel2X(double relx);
     double convertRel2Y(double rely);
     bool on_motion_notify_event(GdkEventMotion* motion_event) override;
     bool on_button_release_event(GdkEventButton* event) override;
     Gdk::CursorType getCursor(GdkEventMotion* motion_event);
     void saveGrayscale(const Glib::ustring& file);
+    void transferRow(uint8_t* srcData, uint32_t yPos, uint32_t transferPixels);
 private:
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
@@ -105,6 +108,7 @@ private:
     double m_yend{0.9};
     bool m_showMask{true};
     bool m_changedCursor{false};
-    uint32_t m_bytePerPixel{1};
+    size_t m_dataOffs{};
+    std::shared_ptr<WiaData> m_reaminder;
 };
 

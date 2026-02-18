@@ -41,15 +41,12 @@ public:
     explicit WiaDevice(const WiaDevice& orig) = delete;
     virtual ~WiaDevice();
 
-    bool scan(WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties);
+    bool scan(WiaDataCallback *pCallback, const std::map<uint32_t, int32_t>& properties);
     std::list<std::shared_ptr<WiaProperty>> getProperties();
     Glib::ustring getDeviceId();
     Glib::ustring getDeviceName();
     HRESULT findItem(IWiaItem2 *pWiaItem, LONG typeMask, IWiaItem2** pRetChildWiaItem);
     IWiaItem2* getWiaItem();
-    static constexpr auto PropertyBits = 4104u;
-    static constexpr auto PropertyFormat = 4106u;
-    static constexpr auto PropertyExtension = 4123u;
     static constexpr auto PropertyResolutionX = 6147u;
     static constexpr auto PropertyResolutionY = 6148u;
     static constexpr auto PropertyStartX = 6149u;
@@ -60,7 +57,7 @@ public:
     static constexpr auto PropertyContrast = 6155u;
     static constexpr auto PropertyThreshold = 6159u;
     void readExtends(IWiaPropertyStorage *pWiaPropertyStorage);
-    std::map<uint32_t, WiaValue> buildScanProperties(
+    std::map<uint32_t, int32_t> buildScanProperties(
             bool full
             , int32_t bright
             , int32_t contr
@@ -71,10 +68,11 @@ public:
             , double yRelStart
             , double xRelEnd
             , double yRelEnd);  // arkward but wia and gtkmm will never be best friends ;(
+    HRESULT setProperties(IWiaItem2 *pWiaItem, bool trnsfFile, const std::map<uint32_t, int32_t>& properties);
 
 protected:
     HRESULT createWiaDevice( IWiaDevMgr2 *pWiaDevMgr, BSTR bstrDeviceID );
-    HRESULT transferWiaItem(IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties);
+    HRESULT transferWiaItem(IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, const std::map<uint32_t, int32_t>& properties);
     void getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const std::string& section);
     int32_t convertX4DPI(int32_t y1, int32_t dpi);
     int32_t convertY4DPI(int32_t y1, int32_t dpi);

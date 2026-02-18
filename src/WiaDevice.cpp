@@ -71,21 +71,16 @@ WiaDevice::getWiaItem() {
 }
 
 bool
-WiaDevice::scan(WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
+WiaDevice::scan(WiaDataCallback *pCallback, const std::map<uint32_t, int32_t>& properties)
 {
     if (m_pWiaDevice) {
-        IWiaItem2 *pChildWiaItem = nullptr;
+        IWiaItem2 *pChildWiaItem{};
         HRESULT hr = findItem(m_pWiaDevice, WiaItemTypeImage, &pChildWiaItem);
         if (SUCCEEDED(hr)) {
-            if (pChildWiaItem) {
-                hr = transferWiaItem(pChildWiaItem, false, pCallback, properties);
-                pChildWiaItem->Release();
-                pChildWiaItem = nullptr;
-                return SUCCEEDED(hr);
-            }
-            else {
-                std::cout << "Could not identify image item!" << std::endl;
-            }
+            hr = transferWiaItem(pChildWiaItem, false, pCallback, properties);
+            pChildWiaItem->Release();
+            pChildWiaItem = nullptr;
+            return SUCCEEDED(hr);
         }
         else {
             std::string message = std::system_category().message(hr);
@@ -156,36 +151,34 @@ WiaDevice::getProperties()
 void
 WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const std::string& section)
 {
-    std::cout << "WiaDevice::getProperties pWiaPropertyStorage " << pWiaPropertyStorage << std::endl;
-    ULONG ulNumProps{};
-    HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
-    if (hr != S_OK) {
-        std::string message = std::system_category().message(hr);
-        std::cout << "WiaDevice::getPropertiesulNumProps hr " << hr 
-                  << " message " << message << std::endl;
-    }
+    //std::cout << "WiaDevice::getProperties" << std::endl;
+    //ULONG ulNumProps{};
+    //HRESULT hr = pWiaPropertyStorage->GetCount(&ulNumProps);
+    //if (hr != S_OK) {
+    //    std::string message = std::system_category().message(hr);
+    //    std::cout << "WiaDevice::getPropertiesulNumProps hr " << hr 
+    //              << " message " << message << std::endl;
+    //}
     IEnumSTATPROPSTG *penum = NULL;
-    hr = pWiaPropertyStorage->Enum(&penum);
+    HRESULT hr = pWiaPropertyStorage->Enum(&penum);
     if (SUCCEEDED(hr)) {
         while (S_OK == hr) {
             //
             // Get the next device's property storage interface pointer
             //
             STATPROPSTG nextWiaPropertyStorage{};
-            hr = penum->Next(1, &nextWiaPropertyStorage, NULL);
+            hr = penum->Next(1, &nextWiaPropertyStorage, nullptr);
             //std::cout << "WiaDevice::getProperties Next hr " << hr
             //          << " nextWiaPropertyStorage " << (nextWiaPropertyStorage.lpwstrName != nullptr ? StringUtils::utf8_encode(nextWiaPropertyStorage.lpwstrName) : "null") << std::endl;
 
             // pWiaEnumDevInfo->Next will return S_FALSE when the list is
-            // exhausted, so check for S_OK before using the returned
-            // value.
+            // exhausted, so check for S_OK before using the returned value.
             if (hr == S_OK) {
                 auto property = std::make_shared<WiaProperty>(nextWiaPropertyStorage);
                 m_properties.push_back(property);
                 if (!section.empty()) {
                     std::string info = property->info(pWiaPropertyStorage);
-                    std::cout << section << " ---------------------------------------" << std::endl
-                              << info << std::endl;
+                    std::cout << section << info << std::endl;
                 }
             }
         }
@@ -211,29 +204,110 @@ WiaDevice::getProperties(IWiaPropertyStorage *pWiaPropertyStorage, const std::st
 }
 
 HRESULT
-WiaDevice::transferWiaItem( IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
+WiaDevice::transferWiaItem( IWiaItem2 *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, const std::map<uint32_t, int32_t>& properties)
 {
-    //
     // Validate arguments
-    //
-    if (NULL == pWiaItem) {
+    if (nullptr == pWiaItem) {
         return E_INVALIDARG;
     }    
-    // Get the IWiaTransfer interface
-    //
-    IWiaTransfer *pWiaTransfer = NULL;
-    HRESULT hr = pWiaItem->QueryInterface(IID_IWiaTransfer,(void**)&pWiaTransfer);
-    if (SUCCEEDED(hr)) {
-        // Download   
-        hr = pWiaTransfer->Download(0,pCallback);
-        
-        // Release the IWiaTransfer 
-        pWiaTransfer->Release();
-        pWiaTransfer = NULL;
+    HRESULT hr = setProperties(pWiaItem, trnsfFile,properties );    //  S_OK; 
+    if (SUCCEEDED(hr)) {        
+        // Get the IWiaTransfer interface
+        IWiaTransfer *pWiaTransfer = nullptr;
+        hr = pWiaItem->QueryInterface(IID_IWiaTransfer,(void**)&pWiaTransfer);
+        if (SUCCEEDED(hr)) {
+            // Download   
+            hr = pWiaTransfer->Download(0 ,pCallback);
+
+            // Release the IWiaTransfer 
+            pWiaTransfer->Release();
+            pWiaTransfer = nullptr;
+        }
     }
     return hr;    
 }
-//#else
+
+HRESULT
+WiaDevice::setProperties(IWiaItem2 *pWiaItem, bool trnsfFile, const std::map<uint32_t, int32_t>& properties)
+{
+    IWiaPropertyStorage *pWiaPropertyStorage = NULL;
+    HRESULT hr = pWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
+    if (SUCCEEDED(hr)) {
+        //
+        // Prepare PROPSPECs and PROPVARIANTs for setting the
+        // media type and format
+        //
+        std::vector<PROPSPEC> PropSpec;
+        std::vector<PROPVARIANT> PropVariant;
+
+        // Use BMP as the output format
+        //GUID guidOutputFormat = trnsfFile ? WiaImgFmt_BMP : WiaImgFmt_MEMORYBMP;    // seems to have not much influence
+        // these do not work, use on upper level?
+        //PropSpec.push_back( {
+        //    .ulKind = PRSPEC_PROPID, 
+        //    .propid = WIA_IPA_TYMED});
+        //PROPVARIANT propVar;
+        //PropVariantInit(&propVar);    
+        //propVar.vt     = VT_I4;
+        //propVar.intVal = trnsfFile ? TYMED_FILE : TYMED_CALLBACK;
+        //PropVariant.push_back(propVar);
+
+//        PropSpec.push_back( {
+//            .ulKind = PRSPEC_PROPID, 
+//            .propid = WIA_IPA_FILENAME_EXTENSION});   // is 4123
+//        PROPVARIANT propVarExt;
+//        PropVariantInit(&propVarExt);
+//        propVarExt.vt      = VT_BSTR;
+//        propVarExt.bstrVal = WiaValue::toBstr("");  // see explanation https://learn.microsoft.com/en-us/windows-hardware/drivers/image/wia-raw-data-header
+//        PropVariant.push_back(propVarExt);        
+//
+//        PropSpec.push_back( {
+//            .ulKind = PRSPEC_PROPID, 
+//            .propid = WIA_IPA_FORMAT});
+//        PROPVARIANT propVarFmt;
+//        PropVariantInit(&propVarFmt);
+//        propVarFmt.vt      = VT_CLSID;
+//        CLSID clsid{};
+//        CoGetPSClsid(WiaImgFmt_RAWRGB, &clsid);
+//        propVarFmt.puuid = &clsid;
+//        PropVariant.push_back(propVarFmt);        
+                
+        
+        
+        
+        for (auto entry : properties) {
+            auto value = entry.second;
+            auto id = entry.first;
+            PropSpec.push_back({
+                .ulKind = PRSPEC_PROPID,
+                .propid = id});
+            PROPVARIANT propVar;
+            PropVariantInit(&propVar);
+            propVar.vt     =  VT_I4;
+            propVar.intVal = value;
+            PropVariant.push_back(propVar);
+            std::cout << "WiaDevice::setProperties id " << id
+                      << " = " << value << std::endl;
+        }
+        // Set the properties
+        hr = pWiaPropertyStorage->WriteMultiple(static_cast<ULONG>(PropSpec.size()), &PropSpec[0], &PropVariant[0], WIA_IPA_FIRST );
+        if (!SUCCEEDED(hr)) {
+            std::string message = std::system_category().message(hr);
+            std::cout << "WiaDevice::setProperties write propertes failed hr " << hr 
+                      << " message " << message << std::endl;            
+        }
+        // Release the IWiaPropertyStorage
+        pWiaPropertyStorage->Release();
+        pWiaPropertyStorage = NULL;    
+    }
+    else {
+        std::string message = std::system_category().message(hr);
+        std::cout << "WiaDevice::setProperties query property storage failed hr " << hr  
+                  << " message " << message << std::endl;
+    }
+    return hr;
+}    
+
 //HRESULT
 //WiaDevice::transferWiaItem( IWiaItem *pWiaItem, bool trnsfFile, WiaDataCallback *pCallback, std::map<uint32_t, WiaValue> properties)
 //{
@@ -497,7 +571,12 @@ WiaDevice::convertX4DPI(int32_t x1, int32_t dpi)
 {
     // need to adapt values as these depend on dpi setting
     double relx = static_cast<double>(x1) / static_cast<double>(horzResolution);
-    return static_cast<int32_t>(relx * static_cast<double>(dpi));
+    int32_t xRet = static_cast<int32_t>(relx * static_cast<double>(dpi));
+    if (m_startX.size() >= 2) {
+        xRet = std::min(xRet, m_startX[0].get<int32_t>());
+        xRet = std::max(xRet, m_startX[1].get<int32_t>());
+    }
+    return xRet;
 }
 
 
@@ -506,10 +585,15 @@ WiaDevice::convertY4DPI(int32_t y1, int32_t dpi)
 {
     // need to adapt values as these depend on dpi setting
     double rely = static_cast<double>(y1) / static_cast<double>(vertResolution);
-    return static_cast<int32_t>(rely * static_cast<double>(dpi));
+    int32_t yRet = static_cast<int32_t>(rely * static_cast<double>(dpi));
+    if (m_startY.size() >= 2) {
+        yRet = std::min(yRet, m_startY[0].get<int32_t>());
+        yRet = std::max(yRet, m_startY[1].get<int32_t>());
+    }
+    return yRet;
 }
 
-std::map<uint32_t, WiaValue>
+std::map<uint32_t, int32_t>
 WiaDevice::buildScanProperties(
         bool full
         , int32_t bright
@@ -522,39 +606,14 @@ WiaDevice::buildScanProperties(
         , double xRelEnd
         , double yRelEnd)
 {
-    WiaValue wiaBits;
-    wiaBits.set(bits);
-    WiaValue brightness;
-    brightness.set(bright);
-    WiaValue contrast;
-    contrast.set(contr);
-    WiaValue threshold;
-    threshold.set(tresh);
-
-    auto dpi = full ? res : 50;
-    WiaValue horz;
-    horz.set(dpi);
-    WiaValue vert;
-    vert.set(dpi);
-    auto map = std::map<uint32_t, WiaValue>();
-    map.insert(std::make_pair(PropertyResolutionX, horz));
-    map.insert(std::make_pair(PropertyResolutionY, vert));
-    map.insert(std::make_pair(PropertyBits, wiaBits));
-    map.insert(std::make_pair(PropertyBrightness, brightness));
-    map.insert(std::make_pair(PropertyContrast, contrast));
-    map.insert(std::make_pair(PropertyThreshold, threshold));
-    WiaValue ext;
-    ext.set("");    // see explanation https://learn.microsoft.com/en-us/windows-hardware/drivers/image/wia-raw-data-header
-    map.insert(std::make_pair(PropertyExtension, ext)); 
-    WiaValue fmt;
-    PROPVARIANT varFmt;
-    CLSID clsid{};
-    CoGetPSClsid(WiaImgFmt_RAWRGB, &clsid);
-    varFmt.vt = VT_CLSID;
-    varFmt.puuid = &clsid;  
-    fmt.set(varFmt); // use raw as always ;)
-    map.insert(std::make_pair(PropertyFormat, fmt));
-    
+    auto dpi = full ? res : 75; // should look for actaul minimum
+    auto map = std::map<uint32_t, int32_t>();
+    map.insert(std::make_pair(PropertyResolutionX, dpi));
+    map.insert(std::make_pair(PropertyResolutionY, dpi));
+    map.insert(std::make_pair(WIA_IPA_DEPTH, bits)); 
+    map.insert(std::make_pair(PropertyBrightness, bright));
+    map.insert(std::make_pair(PropertyContrast, contr));
+    map.insert(std::make_pair(PropertyThreshold, tresh));   
     
     if (full) {
         int xMaxExtend = 2000.0;
@@ -572,31 +631,15 @@ WiaDevice::buildScanProperties(
         //          << " end " << m_scanPreview->getXEnd()
         //          << " " << m_scanPreview->getYEnd() << std::endl;
         int32_t x1 = static_cast<int32_t>(xRelStart * xMaxExtend);
-        if (m_startX.size() >= 2) {
-            x1 = std::min(x1, m_startX[0].get<int32_t>());
-            x1 = std::max(x1, m_startX[1].get<int32_t>());
-        }
-        WiaValue xStart;
-        xStart.set(convertX4DPI(x1, dpi));
-        map.insert(std::make_pair(PropertyStartX, xStart));
+        map.insert(std::make_pair(PropertyStartX, convertX4DPI(x1, dpi)));
         int32_t y1 = static_cast<int32_t>(yRelStart * yMaxExtend);
-        if (m_startY.size() >= 2) {
-            y1 = std::min(y1, m_startY[0].get<int32_t>());
-            y1 = std::max(y1, m_startY[1].get<int32_t>());
-        }
-        WiaValue yStart;
-        yStart.set(convertY4DPI(y1, dpi));
-        map.insert(std::make_pair(PropertyStartY, yStart));
-        WiaValue xExtend;
+        map.insert(std::make_pair(PropertyStartY, convertY4DPI(y1, dpi)));
         int32_t width = static_cast<int32_t>((xRelEnd - xRelStart) * xMaxExtend + 0.99);
         int32_t effWidth = std::min(width, xMaxExtend - x1 - 1);
-        xExtend.set(convertX4DPI(effWidth, dpi));
-        map.insert(std::make_pair(PropertyExtendX, xExtend));
-        WiaValue yExtend;
+        map.insert(std::make_pair(PropertyExtendX, convertX4DPI(effWidth, dpi)));
         int32_t height = static_cast<int32_t>((yRelEnd - yRelStart) * yMaxExtend + 0.99);
         int32_t effHeight = std::min(height, yMaxExtend - y1 - 1);
-        yExtend.set(convertY4DPI(effHeight, dpi));
-        map.insert(std::make_pair(PropertyExtendY, yExtend));
+        map.insert(std::make_pair(PropertyExtendY, convertY4DPI(effHeight, dpi)));
         //std::cout << "Start " << x1 << " " << y1
         //          << " width " << width
         //          << " height " << height << std::endl;

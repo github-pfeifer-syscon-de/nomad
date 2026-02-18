@@ -18,7 +18,6 @@
 
 #include <iostream>
 #include <StringUtils.hpp>
-#include <bits/ostream.h>
 
 #include "WiaDataCallback.hpp"
 
@@ -109,23 +108,27 @@ WiaDataCallback::TransferCallback(
 {
     HRESULT hr = S_OK;
 
-    std::cout << "WiaDataCallback::TransferCallback" 
-              << " flags " << lFlags 
-              << " hr " << pWiaTransferParams->hrErrorStatus
-              << " percent " << pWiaTransferParams->lPercentComplete
-              << " bytes " << pWiaTransferParams->ulTransferredBytes
-              << std::endl;
-    switch (pWiaTransferParams->lMessage)
-    {
+    //std::cout << "WiaDataCallback::TransferCallback" 
+    //          << " flags " << lFlags 
+    //          << " hr " << pWiaTransferParams->hrErrorStatus
+    //          << " percent " << pWiaTransferParams->lPercentComplete
+    //          << " bytes " << pWiaTransferParams->ulTransferredBytes
+    //          << std::endl;
+    switch (pWiaTransferParams->lMessage) {
         case WIA_TRANSFER_MSG_STATUS:
-            std::cout << "  WIA_TRANSFER_MSG_STATUS" << std::endl;
+            //std::cout << "  WIA_TRANSFER_MSG_STATUS" << std::endl;
+            if (!m_pending) {   // don't overrun
+                m_dispatcher.emit();
+                m_pending = true;
+            }
             break;
         case WIA_TRANSFER_MSG_END_OF_STREAM:
-            std::cout << "  WIA_TRANSFER_MSG_END_OF_STREAM" << std::endl;
+            //std::cout << "  WIA_TRANSFER_MSG_END_OF_STREAM" << std::endl;
             break;
         case WIA_TRANSFER_MSG_END_OF_TRANSFER:
-            std::cout << "  WIA_TRANSFER_MSG_END_OF_TRANSFER" << std::endl;
-            m_stat.close();
+            //std::cout << "  WIA_TRANSFER_MSG_END_OF_TRANSFER" << std::endl;
+            m_dispatcher.emit();
+            //m_stat.close();
             break;
         default:
             std::cout << "  WIA_TRANSFER_MSG unknow " << pWiaTransferParams->lMessage << std::endl;
@@ -169,15 +172,45 @@ WiaDataCallback::Write(const void* ptr, ULONG size, ULONG* written)
     //          << " count " << m_cnt
     //          << " size " << size << std::endl;     
     if (m_cnt == 0) {
-        m_stat.open("wia_data.dmp");        
+        //m_stat.open("wia_data.dmp");        
+        if (size >= 0xel) {
+            auto fileheader = reinterpret_cast<const BITMAPFILEHEADER* >(ptr);
+            m_dataSize = fileheader->bfSize;
+            m_pixelOffs = fileheader->bfOffBits;
+            std::cout << "WiaDataCallback::Write"
+                      << " dataSize " << m_dataSize
+                      << " pixelOffs " << m_pixelOffs << std::endl;            
+        }
     }
-    if (m_cnt <= 1) {
-        std::cout << StringUtils::hexdump(static_cast<const char*>(ptr), size) << std::endl;                
+    else if (m_cnt == 1) {
+        auto bitmapHeader = reinterpret_cast<const BITMAPINFOHEADER* >(ptr);
+        m_width = bitmapHeader->biWidth ;
+        m_height = std::abs(bitmapHeader->biHeight);
+        m_bits = bitmapHeader->biBitCount;
+        m_bytePerPixel = (m_bits / 8);
+        m_bytesPerRow = (( m_width * m_bits + 31) / 32) * sizeof(uint32_t);   // rows are dword aligned 
+        std::cout << "WiaDataCallback::Write"
+                  << " headerSize " << bitmapHeader->biSize
+                  << " width " << bitmapHeader->biWidth 
+                  << " height " << bitmapHeader->biHeight
+                  << " plan " << bitmapHeader->biPlanes
+                  << " bits " << bitmapHeader->biBitCount
+                  << " comp " << bitmapHeader->biCompression
+                  << " imageSize " << bitmapHeader->biSizeImage 
+                  << " bytePerPixel " << m_bytePerPixel 
+                  << " srcRowBytes " << m_bytesPerRow << std::endl;                
+        //std::cout << StringUtils::hexdump(static_cast<const char*>(ptr), size) << std::endl;                        
+    }
+    else {  // the data offs is where its expected
+        //std::cout << "WiaDataCallback::Write"
+        //          << " queue offs " << m_offs << std::endl;
+        m_data.push(std::move(std::make_shared<WiaData>(ptr, size)));        
     }
     ++m_cnt;
-    if (m_stat.is_open()) {
-        m_stat.write(static_cast<const char*>(ptr), size);
-    }
+    m_offs += size;
+    //if (m_stat.is_open()) {
+    //    m_stat.write(static_cast<const char*>(ptr), size);
+    //}
     
     *written = size; 
     return S_OK;
@@ -191,19 +224,19 @@ WiaDataCallback::Seek(LARGE_INTEGER pos, DWORD dir, ULARGE_INTEGER* set)
                   << " pos " << pos.QuadPart
                   << " offs " << dir << std::endl;  
     
-        std::ios_base::seekdir seek{std::ios_base::seekdir::_S_end};
-        if (STREAM_SEEK::STREAM_SEEK_SET == dir) {
-            seek = std::ios_base::seekdir::_S_cur;
-        }
-        else if (STREAM_SEEK::STREAM_SEEK_CUR == dir) {
-            seek = std::ios_base::seekdir::_S_cur;
-        }
-        else if (STREAM_SEEK::STREAM_SEEK_END == dir) {
-            seek = std::ios_base::seekdir::_S_end;
-        }
-        if (m_stat.is_open()) {
-            m_stat.seekp(pos.QuadPart, seek);
-        }    
+        //std::ios_base::seekdir seek{std::ios_base::seekdir::_S_end};
+        //if (STREAM_SEEK::STREAM_SEEK_SET == dir) {
+        //    seek = std::ios_base::seekdir::_S_cur;
+        //}
+        //else if (STREAM_SEEK::STREAM_SEEK_CUR == dir) {
+        //    seek = std::ios_base::seekdir::_S_cur;
+        //}
+        //else if (STREAM_SEEK::STREAM_SEEK_END == dir) {
+        //    seek = std::ios_base::seekdir::_S_end;
+        //}
+        //if (m_stat.is_open()) {
+        //    m_stat.seekp(pos.QuadPart, seek);
+        //}    
     //*set = pos;
     }
     return S_OK;        
@@ -247,9 +280,9 @@ WiaDataCallback::UnlockRegion(ULARGE_INTEGER pos, ULARGE_INTEGER len, DWORD flag
 HRESULT  __stdcall
 WiaDataCallback::Stat(STATSTG* stag, DWORD flag)  
 {
-    std::cout << "WiaDataCallback::Stat "
-              << " type " << stag->type 
-              << " flag " << std::hex << flag << std::dec << std::endl;        
+    //std::cout << "WiaDataCallback::Stat "
+    //          << " type " << stag->type 
+    //          << " flag " << std::hex << flag << std::dec << std::endl;        
     return S_OK;                                                       
 }
 HRESULT  __stdcall

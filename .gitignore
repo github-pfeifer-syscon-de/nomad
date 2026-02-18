@@ -1,6 +1,8 @@
 /meson.md
 /src/properties.txt
 /src/dlldata.c
-/src/wia_lh_i.c
 /src/wia_lh_p.c
 /src/wia_lh_r.rgs
+.idea
+nbproject
+build

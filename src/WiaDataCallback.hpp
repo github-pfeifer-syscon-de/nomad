@@ -20,31 +20,56 @@
 
 #include <glibmm.h>
 #include <fstream>
+#include <algorithm>
+#include <memory>
+#include <oneapi\tbb.h>
 
 #include <windows.h>
 // use local wia.h as workaround if the msys2 version is filled in, use <wia.h>
 #include "wia.h"
 
-struct WiaRawHeader {
-DWORD Tag;         // must contain 'WRAW' (single byte ASCII characters)
-DWORD Version;        // must contain 0x00010000
-DWORD HeaderSize;       // contains amount of valid bytes in header
-DWORD XRes;              // X (horizontal) resolution, in DPI
-DWORD YRes;              // Y (vertical) resolution, in DPI
-DWORD XExtent;           // image width, in pixels
-DWORD YExtent;           // image height, in pixels
-DWORD BytesPerLine;      // used only for uncompressed image data, 0 (unknown) for compressed data 
-DWORD BitsPerPixel;      // number of bits per pixel (all channels)
-DWORD ChannelsPerPixel;  // number of color channels (samples) within a pixel
-DWORD DataType;    // current WIA_IPA_DATATYPE value describing the image
-BYTE  BitsPerChannel[8]; // up to 8 channels per pixel, use as many as needed  
-DWORD Compression;       // current WIA_IPA_COMPRESSION value
-DWORD PhotometricInterp; // current WIA_IPS_PHOTOMETRIC_INTERP value
-DWORD LineOrder;         // image line order as a WIA_LINE_ORDER value
-DWORD RawDataOffset;     // offset position (in bytes, starting from 0) for the raw image data
-DWORD RawDataSize;       // size of raw image data, in bytes
-DWORD PaletteOffset;     // offset position (in bytes, starting from 0) for the palette (0 if none)
-DWORD PaletteSize;       // size, in bytes, of color palette table (0 if no palette is required) 
+class WiaData
+{
+public:
+    WiaData(size_t size) 
+    : m_size{size}
+    {
+        m_data = new uint8_t[size];
+    }
+    WiaData(const void* ptr, size_t size) 
+    : WiaData(size)
+    {
+        auto chr = static_cast<const uint8_t*>(ptr);
+        std::copy(chr, chr + size, m_data);
+    }
+    explicit WiaData(const WiaData& orig) = delete;  // don't copy this
+    ~WiaData() 
+    {
+        if (m_data) {
+            delete[] m_data;
+        }
+    }
+    size_t getBytesSize() 
+    {
+        return m_size;
+    }
+    size_t getUsed() 
+    {
+        return m_used;
+    }
+    void setUsed(size_t used) 
+    {
+        m_used = used;
+    }
+    uint8_t* getData()
+    {
+        return m_data;
+    }
+    
+private:
+    uint8_t* m_data;
+    const size_t m_size;
+    size_t m_used{};
 };
 //
 // The application must instantiate the CDataCallback object using
@@ -70,9 +95,19 @@ private:
     //LONG  m_nBytesTransfered;   // Total number of bytes transferred
     //GUID  m_guidFormat;         // Data format
     //LONG  m_percentComplete;
-    std::ofstream  m_stat; 
+    uint32_t m_dataSize{};     // full data size
+    uint32_t m_pixelOffs{};     // offset pixel data
+    uint32_t m_width{};
+    uint32_t m_height{};
+    uint32_t m_bits{};
+    //std::ofstream  m_stat; 
+    tbb::concurrent_queue<std::shared_ptr<WiaData>> m_data;
     uint32_t m_cnt{};
+    bool m_pending{false};
     Glib::Dispatcher &m_dispatcher;
+    uint32_t m_bytePerPixel{1};
+    uint32_t m_bytesPerRow{1};
+    size_t m_offs{};
 public:
 
     //
@@ -89,13 +124,37 @@ public:
     ULONG CALLBACK AddRef();
     ULONG CALLBACK Release();
 
-    //
-    // The IWiaDataTransfer::idtGetBandedData method periodically
-    // calls the IWiaDataCallback::BandedDataCallback method with
-    // status messages. It sends the callback method a data header
-    // message followed by one or more data messages to transfer
-    // data. It concludes by sending a termination message.
-    //
+    uint32_t getWidth()
+    {
+        return m_width;
+    }
+    uint32_t getHeight()
+    {
+        return m_height;
+    }
+    // bits per pixel e.g. 24 = RGB, 8 = Grapy, 1 = B/W
+    uint32_t getBits()
+    {
+        return m_bits;
+    }
+    tbb::concurrent_queue<std::shared_ptr<WiaData>>& getQueue()
+    {
+        return m_data;
+    }
+    void resetPending()
+    {
+        m_pending = false;
+    }
+    uint32_t getBytePerPixel() 
+    {
+        return m_bytePerPixel;
+    }
+    uint32_t getBytePerRow() 
+    {
+        return m_bytesPerRow;
+    }
+    
+    
     HRESULT __stdcall TransferCallback(
         LONG lFlags,
         WiaTransferParams* p_wiaTransferParams) override;

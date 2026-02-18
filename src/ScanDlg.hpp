@@ -36,7 +36,7 @@ public:
     virtual ~ScanDlg();
     void scanCompleted();
 protected:
-    std::map<uint32_t, WiaValue> getProperties(bool full);
+    std::map<uint32_t, int32_t> getProperties(bool full);
     Glib::ustring getDeviceId();
     std::shared_ptr<WiaDevice> getActiveDevice();
     void setupScale(

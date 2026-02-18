@@ -120,7 +120,7 @@ ScanDlg::ScanDlg(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& buil
     // Keep some infos on foreground
     m_wiaScan = std::make_shared<WiaScan>();
     auto devs = m_wiaScan->getDevices();
-    std::cout << "Devs " << devs.size() << std::endl;
+    //std::cout << "Devs " << devs.size() << std::endl;
     bool first{true};
     for (auto dev : devs) {
         m_device->append(dev->getDeviceId(), dev->getDeviceName());
@@ -343,7 +343,7 @@ ScanDlg::getActiveDevice()
     return nullptr;
 }
 
-std::map<uint32_t, WiaValue>
+std::map<uint32_t, int32_t>
 ScanDlg::getProperties(bool full)
 {
     std::shared_ptr<WiaDevice> activeDevice = getActiveDevice();
@@ -374,7 +374,7 @@ ScanDlg::getProperties(bool full)
                 , m_scanPreview->getXEnd()
                 , m_scanPreview->getYEnd());
     }
-    return std::map<uint32_t, WiaValue>();
+    return std::map<uint32_t, int32_t>();
 }
 
 void
