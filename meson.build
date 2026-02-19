@@ -63,5 +63,5 @@ project_targt = executable(meson.project_name()
     , sources, app_resources
     , dependencies: deps
     , install: true
-    , win_subsystem: 'windows'  # disable this to see conole output for windows
+    #    , win_subsystem: 'windows'  # disable this to see conole output for windows
     )

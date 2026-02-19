@@ -20,6 +20,7 @@
 
 #include <gtkmm.h>
 #include <thread>
+#include <future>
 
 class WiaValue;
 class WiaValue2;
@@ -28,6 +29,32 @@ class NomadWin;
 
 #ifdef __WIN32__
 class WiaDataCallback;
+class TransferThread
+{
+public:
+    TransferThread();
+    virtual ~TransferThread();
+    void run();
+    void setCallback(WiaDataCallback* pCallback);
+    void setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf);
+
+    void setActive(bool active);
+    bool isActive();
+    bool isDone();
+protected:
+    void transferRow(uint8_t* srcData, uint32_t yPos, uint32_t transferPixels);
+    void checkStart();
+    void handleItem(const std::shared_ptr<WiaData>& item);
+    
+private:
+    Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
+    WiaDataCallback* m_callback{};
+    std::thread* m_transferThread{};
+    bool m_active{true};
+    bool m_done{true};
+    size_t m_dataOffs{};
+    std::mutex m_checkOnly;
+};
 // put the scanning into a separate class
 //   subclassing std::thread is discouraged...
 class WorkThread
@@ -37,20 +64,25 @@ public:
             Glib::Dispatcher& dispatcher
             , Glib::Dispatcher& completed
             , const Glib::ustring& deviceId
-            , const std::map<uint32_t, int32_t>& properties);
+            , const std::map<uint32_t, int32_t>& properties
+            , TransferThread* transfer);
     virtual ~WorkThread();
-    void run();
+    void start();
     WiaDataCallback* getDataCallback();
     bool getResult();
+protected:
+    void run();
 private:
     Glib::Dispatcher& m_dispatcher;
     Glib::Dispatcher& m_completed;
-    WiaDataCallback* m_pCallback;
+    WiaDataCallback* m_pCallback{};
     bool m_result{false};
     Glib::ustring m_deviceId;
     std::map<uint32_t, int32_t> m_properties;
-
+    TransferThread* m_transfer{};
+    std::thread* m_workThread{};
 };
+
 #endif
 
 class ScanPreview
@@ -91,16 +123,13 @@ protected:
     bool on_button_release_event(GdkEventButton* event) override;
     Gdk::CursorType getCursor(GdkEventMotion* motion_event);
     void saveGrayscale(const Glib::ustring& file);
-    void transferRow(uint8_t* srcData, uint32_t yPos, uint32_t transferPixels);
 private:
     Glib::RefPtr<Gdk::Pixbuf> m_pixbuf;
     Glib::RefPtr<Gdk::Pixbuf> m_scaled;
-    std::thread* m_workThread{nullptr};
-    WorkThread* m_worker{nullptr};
+    WorkThread* m_worker{};
+    TransferThread* m_transfer{};
     Glib::Dispatcher m_dispatcher;
     Glib::Dispatcher& m_completed;
-    bool m_initScan{false};
-    int32_t m_RowLast{0};
     double m_scale{1.0};
     double m_xstart{0.1};
     double m_ystart{0.1};
@@ -108,7 +137,6 @@ private:
     double m_yend{0.9};
     bool m_showMask{true};
     bool m_changedCursor{false};
-    size_t m_dataOffs{};
-    std::shared_ptr<WiaData> m_reaminder;
+
 };
 
