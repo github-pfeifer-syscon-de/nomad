@@ -672,8 +672,10 @@ SaneScanDevice::transfer(SaneScanParamNotify* scanPreview) {
         if (sane_status != SANE_STATUS_GOOD) {
             throw SaneException("sane_read", sane_status);
         }
-        if (len > 0 && scanPreview) {
-            scanPreview->append(buf, len);
+        if (len > 0) {
+	    if (scanPreview) {
+                scanPreview->append(buf, len);
+	    }
         }
         else {
             break;
