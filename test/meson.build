@@ -13,13 +13,13 @@ rawTest = executable('raw_test'
 test('raw_test', rawTest)
 
 if sane_lib.found()
-sane_deps = [sane_deps, genericimg_deps]
+sane_test_deps = [sane_deps, genericimg_deps]
 
 saneTest = executable('sane_test'
       , files('sane_test.cpp'
         , '../src/SaneScanDevice.cpp')
       , include_directories : incTest
-      , dependencies: sane_deps)
+      , dependencies: sane_test_deps)
 # use as manual test
 #test('sane_test', saneTest)
 endif

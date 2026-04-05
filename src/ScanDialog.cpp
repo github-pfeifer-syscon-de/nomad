@@ -30,7 +30,7 @@
 
 #include "NomadWin.hpp"
 #include "ScanDialog.hpp"
-#include "SaneScanDialog.hpp"
+#include "ScanPreview.hpp"
 
 
 namespace std

@@ -264,21 +264,20 @@ TransferThread::setCallback(WiaDataCallback* callback)
 
 #endif
 
-WiaScanPreview::ScanPreview(
+WiaScanPreview::WiaScanPreview(
         BaseObjectType* cobject,
         const Glib::RefPtr<Gtk::Builder>& builder,
         Glib::Dispatcher& completed)
-: Gtk::DrawingArea(cobject)
+: ScanPreview(cobject, builder)
 , m_completed{completed}
 {
     m_dispatcher.connect(sigc::mem_fun(*this, &WiaScanPreview::scanProgress));
 }
 
- WiaScanPreview::~ScanPreview()
- {
-     cleanup(); // remove remaining
- }
-
+ WiaScanPreview::~WiaScanPreview()
+{
+    cleanup(); // remove remaining
+}
 
 bool
 WiaScanPreview::getResult()

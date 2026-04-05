@@ -50,6 +50,11 @@ protected:
         , IWiaPropertyStorage *pWiaPropertyStorage
         , uint32_t propertyId
         , Gtk::SpinButton* scale);
+    void setupCombo(
+        const std::shared_ptr<WiaDevice>& activeDev
+        , IWiaPropertyStorage *pWiaPropertyStorage
+        , uint32_t propertyId
+        , Gtk::ComboBoxText* combo);
 protected:
     void deviceChanged();
 

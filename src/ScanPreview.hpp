@@ -25,7 +25,7 @@ class ScanPreview
 public:
     ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder);
     explicit ScanPreview(const ScanPreview &other) = delete;
-    virtual ~ScanPreview() = default;
+    virtual ~ScanPreview();
 
     inline double getXStart() {
         return m_xstart;

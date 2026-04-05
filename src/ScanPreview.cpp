@@ -30,6 +30,10 @@ ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builde
         | Gdk::EventMask::BUTTON_MOTION_MASK);
 }
 
+ScanPreview::~ScanPreview()
+{
+}
+
 bool
 ScanPreview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) {
     if (m_pixbuf) {

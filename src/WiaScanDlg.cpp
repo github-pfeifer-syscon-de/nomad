@@ -108,8 +108,8 @@ WiaScanDlg::deviceChanged()
             if (SUCCEEDED(hr) && activeDev) {
                 setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyBrightness, m_brightness);
                 setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyContrast, m_contrast);
-                setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyThreshold, m_threshold);
-                setupSpinner(activeDev, pWiaPropertyStorage, WiaDevice::PropertyResolutionX, m_resolution);
+                //setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyThreshold, m_threshold);
+                setupCombo(activeDev, pWiaPropertyStorage, WiaDevice::PropertyResolutionX, m_resolution);
                 // also read extends as we have the storage around
                 activeDev->readExtends(pWiaPropertyStorage);
             }
@@ -130,6 +130,38 @@ WiaScanDlg::getDeviceId()
 {
     return m_device->get_active_id();
 }
+
+void 
+WiaScanDlg::setupCombo(
+        const std::shared_ptr<WiaDevice>& activeDev
+        , IWiaPropertyStorage *pWiaPropertyStorage
+        , uint32_t propertyId
+        , Gtk::ComboBoxText* combo)
+{
+    if (combo && activeDev) {
+        for (auto property : activeDev->getProperties()) {
+            if (property->getPropertyId() == propertyId) {
+                auto values = property->getRange(pWiaPropertyStorage);
+                if (values.size() >= 2) {
+                    auto val = property->getValue(pWiaPropertyStorage);
+                    int min = values[1].get<int32_t>();
+                    int max = values[0].get<int32_t>();
+                    min = std::max(min, 150);    // lowest values e.g.1 will be useless
+                    while (min <= max) {
+                        std::string id = psc::fmt::format("{}", min);
+                        min *= 2;
+                        combo->append(id, id);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    else {
+        std::cout << "ScanDlg::setupSpinner component missing!" << std::endl;
+    }
+}
+
 
 void
 WiaScanDlg::setupSpinner(
@@ -214,8 +246,10 @@ WiaScanDlg::getProperties(bool full)
     if (activeDevice) {
         auto bright = static_cast<int32_t>(m_brightness->get_value());
         auto contr = static_cast<int32_t>(m_contrast->get_value());
-        auto tresh = static_cast<int32_t>(m_threshold->get_value());
-        auto res = m_resolution->get_value_as_int();
+        //auto tresh = static_cast<int32_t>(m_threshold->get_value());
+        auto tresh = 128;
+        auto resId = m_resolution->get_active_id();        
+        auto res = std::stoi(resId);
         int32_t bits = 8;
         if (m_radioColor->get_active()) {
             bits = 24;
