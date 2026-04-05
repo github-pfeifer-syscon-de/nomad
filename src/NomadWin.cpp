@@ -21,6 +21,7 @@
 #include <DisplayImage.hpp>
 #include <exception>
 
+#include "nomad_config.h"
 #include "NomadWin.hpp"
 #include "NomadApp.hpp"
 #include "Capture.hpp"
@@ -28,13 +29,15 @@
 #include "CairoShape.hpp"
 #ifdef __WIN32__
 #include "WinCapture.hpp"
-#include "ScanDlg.hpp"
+#include "WiaScanDlg.hpp"
 #else
 #include "X11Capture.hpp"
 #endif
+#ifdef USE_SANE_SCAN
+#include "SaneScanDialog.hpp"
+#endif
 #include "PenlWindow.hpp"
 #include "ImageReader.hpp"
-#include "nomad_config.h"
 
 #undef NOMADWIN_DEBUG
 
@@ -245,14 +248,18 @@ NomadWin::activate_actions()
 		});
     add_action(capture_action);
 
-    #ifdef __WIN32__
+    #if defined(__WIN32__) || defined(USE_SANE_SCAN)
     auto scan_action = Gio::SimpleAction::create("scan");
     scan_action->signal_activate().connect(
         [this] (const Glib::VariantBase& value)  {
             auto builder = Gtk::Builder::create();
             try {
                 builder->add_from_resource(m_appSupport.getApplication()->get_resource_base_path() + "/scan-dlg.ui");
-                ScanDlg* dialog = nullptr;
+                #ifdef USE_SANE_SCAN
+                SaneScanDialog* dialog = nullptr;
+                #else
+                WiaScanDlg* dialog = nullptr;
+                #endif
                 builder->get_widget_derived("scan-dlg", dialog, this);
                 dialog->show_all();
                 dialog->run();

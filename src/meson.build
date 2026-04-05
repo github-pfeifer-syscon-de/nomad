@@ -14,6 +14,8 @@ sources = files(
     , 'ScaleableShape.cpp'
     , 'ImageReader.cpp'
     , 'Preview.cpp'
+    , 'ScanDialog.cpp'
+    , 'ScanPreview.cpp'
     )
 
 message('x11 found', x11_lib.found())
@@ -23,13 +25,22 @@ endif
 if get_option('libraw')
     sources += files('RawImageReader.cpp')
 endif
-# both values are windows (as we use win_subsystem: 'windows')
+message('sane found', sane_lib.found())
+if sane_lib.found()
+sources += files(
+        'SaneScanDialog.cpp'
+      , 'SaneScanDevice.cpp'
+      , 'SaneScanPreview.cpp'
+        )
+endif
+
+# both these values are windows (... have not seen msys/cygwin)
 #message('build mach', build_machine.system())
 #message('targ mach', target_machine.system())
 if target_machine.system() == 'windows'
     sources += files(
-          'ScanDlg.cpp'
-        , 'ScanPreview.cpp'
+          'WiaScanDlg.cpp'
+        , 'WiaScanPreview.cpp'
         , 'WinCapture.cpp'
         , 'WiaDataCallback.cpp'
         , 'WiaProperty.cpp'

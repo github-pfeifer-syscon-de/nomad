@@ -147,6 +147,10 @@
                       <object class="GtkComboBoxText" id="device">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -160,6 +164,10 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
+                        <property name="margin-start">2</property>
+                        <property name="margin-end">2</property>
+                        <property name="margin-top">2</property>
+                        <property name="margin-bottom">2</property>
                         <property name="active">True</property>
                         <property name="draw-indicator">True</property>
                       </object>
@@ -175,6 +183,10 @@
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">False</property>
+                        <property name="margin-start">2</property>
+                        <property name="margin-end">2</property>
+                        <property name="margin-top">2</property>
+                        <property name="margin-bottom">2</property>
                         <property name="active">True</property>
                         <property name="draw-indicator">True</property>
                       </object>
@@ -185,19 +197,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioButton" id="radioBW">
-                        <property name="label" translatable="yes">Black&amp;White</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">False</property>
-                        <property name="active">True</property>
-                        <property name="draw-indicator">True</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">3</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                     <child>
                       <object class="GtkLabel">
@@ -216,6 +216,10 @@
                       <object class="GtkScale" id="scaleContrast">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
                         <property name="show-fill-level">True</property>
                         <property name="round-digits">0</property>
                         <property name="digits">0</property>
@@ -244,6 +248,10 @@
                       <object class="GtkScale" id="scaleBrightness">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
                         <property name="show-fill-level">True</property>
                         <property name="round-digits">0</property>
                         <property name="digits">0</property>
@@ -256,32 +264,10 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Threshold</property>
-                        <property name="xalign">0.05000000074505806</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">8</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                     <child>
-                      <object class="GtkScale" id="scaleThreshold">
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="show-fill-level">True</property>
-                        <property name="round-digits">0</property>
-                        <property name="digits">0</property>
-                        <property name="value-pos">left</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">9</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                     <child>
                       <object class="GtkLabel">
@@ -297,11 +283,13 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSpinButton" id="resolution">
+                      <object class="GtkComboBoxText" id="resolution">
                         <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="placeholder-text" translatable="yes">Resolution</property>
-                        <property name="numeric">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>

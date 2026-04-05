@@ -32,7 +32,7 @@ class WiaValue;
 class WiaValue2;
 class WiaProperty;
 class WiaScan;
-class ScanPreview;
+class WiaScanPreview;
 
 class WiaDevice
 {

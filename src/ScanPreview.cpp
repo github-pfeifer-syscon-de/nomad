@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2023 rpf
+ * Copyright (C) 2026 RPf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,276 +16,60 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <iostream>
 #include <StringUtils.hpp>
 #include <ImageUtils.hpp>
-#include <mutex>
-#include <thread>
-#include <chrono>
 
 #include "ScanPreview.hpp"
-#include "NomadWin.hpp"
-#include "WiaProperty.hpp"
-#include "nomad_config.h"
 
-#ifdef __WIN32__
-#include "WiaScan.hpp"
-
-WorkThread::WorkThread(Glib::Dispatcher& dispatcher
-                        , Glib::Dispatcher& completed
-                        , const Glib::ustring& deviceId
-                        , const std::map<uint32_t, int32_t>& properties
-                        , TransferThread* transferThread)
-: m_dispatcher{dispatcher}
-, m_completed{completed}
-, m_deviceId{deviceId}
-, m_properties{properties}
-, m_transfer{transferThread}
-{
-}
-
-void
-WorkThread::run()
-{
-    WiaScan winScan;
-    auto devs = winScan.getDevices();
-    bool found = false;
-    for (auto dev : devs) {
-        if (dev->getDeviceId() == m_deviceId) {
-            found = true;
-            m_pCallback = new WiaDataCallback(m_dispatcher);
-            if (m_pCallback) {
-                if (m_transfer) {
-                    m_transfer->setCallback(m_pCallback);
-                }
-                m_result = dev->scan(m_pCallback, m_properties);
-                std::cout << "scan " << (m_result ? "ok" : "err") << std::endl;    // will show error on color scan ?
-                m_dispatcher.emit();    // ensure we completed (other places with hight rate of activations may loose signals?)
-            }
-            else {
-                std::cout << "Error creating callback" << std::endl;
-            }
-            break;
-        }
-    }
-    if (!found) {
-        std::cout << "The expected device " << m_deviceId << " was not found!" << std::endl;
-    }
-    m_completed.emit();
-}
-
-WorkThread::~WorkThread()
-{
-    if (m_pCallback) {
-        m_pCallback->Release();
-        m_pCallback = nullptr;
-    }
-    if (m_workThread) {
-        if (m_workThread->joinable()) {
-            std::cout << "WorkThread::~WorkThread joining ..." << std::endl;
-            m_workThread->join();   // wait for previous
-        }        
-        std::cout << "WorkThread::~WorkThread  destroy" << std::endl;
-        delete m_workThread;
-        m_workThread = nullptr;
-    }   
-}
-
-void
-WorkThread::start()
-{
-    m_workThread = new std::thread(
-        [this] {
-           run();
-        });    
-}
-
-WiaDataCallback*
-WorkThread::getDataCallback()
-{
-    return m_pCallback;
-}
-
-bool WorkThread::getResult()
-{
-    return m_result;
-}
-
-TransferThread::TransferThread()
-{
-}
-
-TransferThread::~TransferThread()
-{
-    std::cout << "TransferThread::~TransferThread destroy" << std::endl;
-    if (m_transferThread) {
-        if (m_transferThread->joinable()) {
-            std::cout << "TransferThread::~TransferThread joining ..." << std::endl;
-            m_transferThread->join();   // wait for
-        }
-        std::cout << "TransferThread::~TransferThread destroy" << std::endl;
-        delete m_transferThread;
-        m_transferThread = nullptr;        
-    }
-}
-
-void 
-TransferThread::checkStart()
-{
-    // since we are waiting for input from two sides ensure everything is ready before we start
-    std::lock_guard<std::mutex> guard(m_checkOnly);
-    if (m_pixbuf
-     && m_callback 
-     && !m_transferThread) {
-        std::cout << "TransferThread::checkStart started" << std::endl;
-        m_transferThread = new std::thread(
-            [this] {
-                run();
-            });
-    }    
-}
-
-void
-TransferThread::transferRow(uint8_t* pixSrc, uint32_t yPos, uint32_t transferPixels)
-{
-    auto pixData = reinterpret_cast<uint32_t*>(m_pixbuf->get_pixels()) + (yPos) * (m_pixbuf->get_rowstride() / sizeof(uint32_t));
-    for (size_t x = 0; x < transferPixels; ++x) {
-        //   windows   BGR?
-        uint32_t rgb;
-        const auto bytePerPixel = m_callback->getBytePerPixel();
-        if (bytePerPixel >= 3) {       // discard alpha in case it is there...
-            rgb = (pixSrc[0] << 16u) | (pixSrc[1] << 8u) | pixSrc[2];
-        }
-        else {
-            uint8_t gray;
-            if (bytePerPixel == 1)  {   // grayscale
-                gray = *pixSrc;
-            }
-            else {                      // b&w
-                auto bit = pixSrc[x >> 3u] & (0x80u >> (x & 0x7u));
-                gray = bit != 0 ? 0xffu : 0u;
-            }
-            rgb = (gray << 16u) | (gray << 8u) | gray;
-        }
-        //  pixbuf    A 31..24  R 23..16  G 15..8   B 7..0
-        *pixData = 0xff000000u | rgb;
-        pixSrc += bytePerPixel;
-        ++pixData; // next pixel
-    }
-}
-
-void 
-TransferThread::handleItem(const std::shared_ptr<WiaData>& item)
-{
-    const auto srcBytesPerRow = m_callback->getBytePerRow();
-    const auto srcBytePerPixel = m_callback->getBytePerPixel();
-    uint32_t yPos = m_dataOffs / srcBytesPerRow;
-    uint8_t* pixSrc = item->getData();            
-    const uint32_t srcDataSize = item->getBytesSize();
-    uint32_t pixCnt = srcDataSize / srcBytePerPixel;
-    // since we have a offset after the first "packet", try to use upto "end"
-    auto offs = (srcDataSize % srcBytesPerRow);
-    std::cout << "TransferThread::handleItem"
-              << " item size " << srcDataSize
-              << " ypos " << yPos
-              << " offs " << offs << std::endl;
-    pixSrc += offs;
-    pixCnt -= offs / srcBytePerPixel;
-    while (pixCnt >= m_callback->getWidth()) {
-        //std::cout << "ScanPreview::scanProgress"
-        //          << " y " << y + yPos
-        //          << " pixcnt " << pixCnt
-        //          << " transf " << transferPixels << std::endl;
-        transferRow(pixSrc, yPos, m_callback->getWidth());
-        pixCnt -= m_callback->getWidth();
-        pixSrc += srcBytesPerRow;
-        ++yPos;
-        if (yPos >= m_callback->getHeight()) {
-            std::cout << "TransferThread::handleItem got ypos " << yPos << " break!" << std::endl;
-            pixCnt = 0;
-            m_active = false;   // since we are done ...
-            break;
-        }
-    }
-    std::cout << "TransferThread::handleItem"
-              << " pixCnt " << pixCnt << std::endl;
-    m_dataOffs += srcDataSize;    
-}
-
-void
-TransferThread::run()
-{
-    m_done = false;
-    while (m_active) {
-        auto& queue = m_callback->getQueue();
-        std::shared_ptr<WiaData> item;
-        while (queue.try_pop(item)) {
-            handleItem(item);
-            if (!m_active) {
-                break;
-            }
-        }       
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    }
-    m_done = true;
-}
-
-void 
-TransferThread::setActive(bool active)
-{
-    m_active = active;
-}
-
-bool 
-TransferThread::isActive()
-{
-    return m_active;
-}
-
-bool 
-TransferThread::isDone()
-{
-    return m_done;
-}
-
-void
-TransferThread::setPixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf)
-{
-    m_pixbuf = pixbuf;
-    checkStart();
-}
-
-void 
-TransferThread::setCallback(WiaDataCallback* callback)
-{
-    m_callback = callback; 
-    checkStart();
-}
-
-#endif
-
-ScanPreview::ScanPreview(
-        BaseObjectType* cobject,
-        const Glib::RefPtr<Gtk::Builder>& builder,
-        Glib::Dispatcher& completed)
+ScanPreview::ScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
 : Gtk::DrawingArea(cobject)
-, m_completed{completed}
 {
-    m_dispatcher.connect(sigc::mem_fun(*this, &ScanPreview::scanProgress));
     add_events(Gdk::EventMask::BUTTON_PRESS_MASK
         | Gdk::EventMask::BUTTON_RELEASE_MASK
         | Gdk::EventMask::POINTER_MOTION_MASK
         | Gdk::EventMask::BUTTON_MOTION_MASK);
 }
 
- ScanPreview::~ScanPreview()
- {
-     cleanup(); // remove remaining
- }
+bool
+ScanPreview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx) {
+    if (m_pixbuf) {
+        double wScale = static_cast<double>(get_width()) / static_cast<double>(m_pixbuf->get_width());
+        double hScale = static_cast<double>(get_height()) / static_cast<double>(m_pixbuf->get_height());
+        m_scale = std::min(wScale, hScale);
+        int scaledWidth = static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * m_scale);
+        int scaledHeight = static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * m_scale);
+        if (!m_scaled
+         || (std::abs(scaledWidth - m_scaled->get_width()) > 10
+         &&  std::abs(scaledHeight - m_scaled->get_height()) > 10)) {   // scale with steps not every pixel
+            //std::cout << "scaling "
+            //          << " width " << scaledWidth
+            //          << " height " << scaledHeight << std::endl;
+            m_scaled = m_pixbuf->scale_simple(scaledWidth, scaledHeight, Gdk::InterpType::INTERP_BILINEAR);
+         }
+        int displayedWidth = m_scaled->get_width();
+        int displayedHeight = m_scaled->get_height();
+        Gdk::Cairo::set_source_pixbuf(cairoCtx, m_scaled, 0, 0);
+        cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
+        cairoCtx->fill();
+        if (m_showMask) {
+             // draw mask
+             cairoCtx->set_fill_rule(Cairo::FillRule::FILL_RULE_EVEN_ODD);
+             cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
+             double x = convertRel2X(m_xstart);
+             double y = convertRel2Y(m_ystart);
+             double width = convertRel2X(m_xend - m_xstart);
+             double height = convertRel2Y(m_yend - m_ystart);
+             cairoCtx->rectangle(x, y, width, height);
+             cairoCtx->set_source_rgba(0.5, 0.5, 0.5, 0.5);
+             cairoCtx->fill();
+        }
+    }
+    return true;
+}
 
- Gdk::CursorType
- ScanPreview::getCursor(GdkEventMotion* motion_event)
- {
+Gdk::CursorType
+ScanPreview::getCursor(GdkEventMotion* motion_event)
+{
     const auto sensitifity = 12;
     const auto sensitifity_2 = sensitifity / 2;
     double mouseX = motion_event->x;
@@ -326,7 +110,7 @@ ScanPreview::on_button_release_event(GdkEventButton* event)
         gdkWindow->set_cursor();
         m_changedCursor = false;
     }
-    return FALSE;
+    return false;
 }
 
 bool
@@ -382,15 +166,10 @@ ScanPreview::setShowMask(bool showMask)
     m_showMask = showMask;
 }
 
-bool ScanPreview::getShowMask()
+bool
+ScanPreview::getShowMask()
 {
     return m_showMask;
-}
-
-bool
-ScanPreview::getResult()
-{
-    return m_worker ? m_worker->getResult() : true;
 }
 
 Glib::RefPtr<Gdk::Pixbuf>
@@ -420,145 +199,6 @@ ScanPreview::convertRel2Y(double rely)
     }
     return y;
 }
-
-bool
-ScanPreview::on_draw(const Cairo::RefPtr<Cairo::Context>& cairoCtx)
-{
-    if (m_pixbuf) {
-        double wScale = static_cast<double>(get_width()) / static_cast<double>(m_pixbuf->get_width());
-        double hScale = static_cast<double>(get_height()) / static_cast<double>(m_pixbuf->get_height());
-        m_scale = std::min(wScale, hScale);
-        int scaledWidth = static_cast<int>(static_cast<double>(m_pixbuf->get_width()) * m_scale);
-        int scaledHeight = static_cast<int>(static_cast<double>(m_pixbuf->get_height()) * m_scale);
-        if (!m_scaled
-         || (std::abs(scaledWidth - m_scaled->get_width()) > 10
-         &&  std::abs(scaledHeight - m_scaled->get_height()) > 10)) {   // scale with steps not every pixel
-            //std::cout << "scaling "
-            //          << " width " << scaledWidth
-            //          << " height " << scaledHeight << std::endl;
-            m_scaled = m_pixbuf->scale_simple(scaledWidth, scaledHeight, Gdk::InterpType::INTERP_BILINEAR);
-        }
-        int displayedWidth = m_scaled->get_width();
-        int displayedHeight = m_scaled->get_height();
-        Gdk::Cairo::set_source_pixbuf(cairoCtx, m_scaled, 0, 0);
-        cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
-        cairoCtx->fill();
-        if (m_showMask) {
-            // draw mask
-            cairoCtx->set_fill_rule(Cairo::FillRule::FILL_RULE_EVEN_ODD);
-            cairoCtx->rectangle(0, 0, displayedWidth, displayedHeight);
-            double x = convertRel2X(m_xstart);
-            double y = convertRel2Y(m_ystart);
-            double width = convertRel2X(m_xend - m_xstart);
-            double height = convertRel2Y(m_yend - m_ystart);
-            cairoCtx->rectangle(x, y, width, height);
-            cairoCtx->set_source_rgba(0.5, 0.5, 0.5, 0.5);
-            cairoCtx->fill();
-        }
-    }
-    return true;
-}
-
-void
-ScanPreview::create(int width, int height, const Gdk::Color& background)
-{
-    m_pixbuf = Gdk::Pixbuf::create(
-            Gdk::Colorspace::COLORSPACE_RGB
-            , true
-            , 8
-            , width
-            , height);
-    guint32 pixel = (background.get_red() >> 8u) << 24u
-                  | (background.get_green() >> 8u) << 16u
-                  | (background.get_blue())      // eliminated >> 8u) << 8u as this will be a no op
-                  | 0xffu;
-    m_pixbuf->fill(pixel);
-    m_scaled.reset();
-    queue_draw();
-}
-
-void
-ScanPreview::scanProgress()
-{
-    if (m_worker) {
-        const auto callback = m_worker->getDataCallback();
-        if (callback->getWidth() == 0
-         || callback->getHeight() == 0) {   // not yet ready
-            std::cout << "ScanPreview::scanProgress no data " << std::endl;
-            return;
-        }
-        if (!m_pixbuf) {
-            Gdk::Color color;
-            color.set("#000");
-            create(callback->getWidth(), callback->getHeight(), color);
-            if (m_transfer) {
-                m_transfer->setPixbuf(m_pixbuf);
-            }
-            else {
-                std::cout << "ScanPreview::scanProgress no transfer" << std::endl;
-            }                 
-        }
-        callback->resetPending();
-        m_scaled.reset(); // need to refresh
-        queue_draw();   // as the view is scaled no direct relationship...
-    }
-    else {
-        std::cout << "missing callback!" << std::endl;
-    }
-}
-
-void
-ScanPreview::cleanup()
-{
-    // use member so we wont fail on destruction of thread and can keep transfer
-    if (m_transfer) {   // destroy in reverse order
-        m_transfer->setActive(false);
-        auto start = std::chrono::high_resolution_clock::now();
-        while (!m_transfer->isDone()) {
-            auto stop = std::chrono::high_resolution_clock::now();
-            auto duration = duration_cast<std::chrono::milliseconds>(stop - start);
-            if (duration.count() > 1000l) { // wait a definite time
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        delete m_transfer;
-        m_transfer = nullptr;
-    }
-    if (m_worker) {
-        delete m_worker;
-        m_worker = nullptr;        
-    }
-}
-
-void
-ScanPreview::scan(const Glib::ustring& devId, const std::map<uint32_t, int32_t>& properties)
-{
-    cleanup();
-    m_pixbuf.reset();   // recreeate for each scan
-    m_transfer = new TransferThread();
-    m_worker = new WorkThread(m_dispatcher, m_completed, devId, properties, m_transfer);
-    m_worker->start();
-}
-
-// convert alpha to grayscales if necessary
-//   looks nice to use something more adaptable,
-//   but the outcome looks blured ...
-//Cairo::RefPtr<Cairo::Surface>
-//convertSurface(Cairo::RefPtr<Cairo::ImageSurface>& surface)
-//{
-//    if (surface->get_format() == Cairo::Format::FORMAT_A1
-//     || surface->get_format() == Cairo::Format::FORMAT_A8) {
-//        auto cr = Cairo::Context::create(surface);
-//        cr->push_group_with_content(Cairo::Content::CONTENT_COLOR_ALPHA);
-//        cr->set_source_rgb(1.0, 1.0, 1.0);
-//        cr->paint();
-//        cr->set_source_rgb(0.0, 0.0, 0.0);
-//        cr->mask(cr->get_target(), 0.0, 0.0);
-//        return cr->get_group_target();
-//    }
-//    return surface;
-//}
 
 bool
 ScanPreview::savePng(const Glib::ustring& file)

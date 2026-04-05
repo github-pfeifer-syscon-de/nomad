@@ -15,15 +15,27 @@ files (I know it's not the smartest way to do this, but it is the fastest)
 see RawImageReader.hpp RawImageReader::RAW_EXT you may need to add
 extensions for formats you want to handle (and are supported by libraw).
 
+## Dependencies
+
+The following dependencies libs are optional
+- libharu for pdf functions
+- sane (linux) scanning
+- x11 linux screen capture
+
+## Linux
+
+The Sane interface is a work in progress, results may vary... 
+
 ## Windows
 The scanning interface is getting reworked for vista+,
-but at moment not working.
+but at moment is not working.
 As the WIA headers wia_lh.h for vista+ is missing some functions 
 here is a workaround if you fell the need to implement more types:
 ```
 pacman -S msys2-w32api-headers
 pacman -S msys2-w32api-runtime
 pacman -S ${MINGW_PACKAGE_PREFIX}-tools
+pacman -S ${MINGW_PACKAGE_PREFIX}-tbb
 ```
 - download the windows SDK to get the signature for missing types from wia_lh.h
 - identify the missing types and add those in src/wia_lh.idl
