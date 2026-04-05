@@ -20,22 +20,23 @@
 #include <gtkmm.h>
 #include <vector>
 
-#include <sane/sane.h>
+#include "SaneScanDevice.hpp"
 #include "ScanPreview.hpp"
 
 class SaneScanPreview
 : public ScanPreview
+, public SaneScanParamNotify
 {
 public:
     SaneScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, Glib::Dispatcher& completed);
     explicit SaneScanPreview(const SaneScanPreview &other) = delete;
     virtual ~SaneScanPreview() = default;
-    void setParameter(SANE_Parameters& parameters);
-    void append(std::vector<SANE_Byte>& buf, SANE_Int len);
+    void setParameter(const SANE_Parameters& parameters) override;
+    void append(std::vector<SANE_Byte>& buf, SANE_Int len) override;
 protected:
 
 private:
     Glib::Dispatcher& m_completed;
     SANE_Parameters m_parameters;
-    size_t m_offs;
+    size_t m_offs{};
 };

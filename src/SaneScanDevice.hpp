@@ -17,11 +17,9 @@
  */
 #pragma once
 
-#include <sane/sane.h>
-#include <exception>
 #include <string_view>
+#include <sane/sane.h>
 
-#include "SaneScanPreview.hpp"
 
 class SaneException
 : public std::runtime_error
@@ -195,6 +193,14 @@ public:
 private:
 };
 
+class SaneScanParamNotify
+{
+public:
+    virtual ~SaneScanParamNotify() = default;
+    virtual void setParameter(const SANE_Parameters& param) = 0;
+    virtual void append(std::vector<SANE_Byte>& buf, SANE_Int len) = 0;
+};
+
 class SaneScanDevice
 {
 public:
@@ -223,7 +229,7 @@ public:
     static constexpr auto CONTRAST_OPTION{"contrast"};      // Int
     static constexpr auto RESOLUTION_OPTION{"resolution"};  // Int
     static constexpr auto PREVIEW_OPTION{"preview"};
-    void transfer(SaneScanPreview* scanPreview);
+    void transfer(SaneScanParamNotify* scanPreview);
 protected:
     void checkOpen();
 
