@@ -143,14 +143,22 @@ WiaScanDlg::setupCombo(
             if (property->getPropertyId() == propertyId) {
                 auto values = property->getRange(pWiaPropertyStorage);
                 if (values.size() >= 2) {
-                    auto val = property->getValue(pWiaPropertyStorage);
-                    int min = values[1].get<int32_t>();
-                    int max = values[0].get<int32_t>();
-                    min = std::max(min, 150);    // lowest values e.g.1 will be useless
-                    while (min <= max) {
-                        std::string id = psc::fmt::format("{}", min);
-                        min *= 2;
+                    auto valProp = property->getValue(pWiaPropertyStorage);
+                    auto val = valProp.get<int32_t>();
+                    auto min = values[1].get<int32_t>();
+                    auto max = values[0].get<int32_t>();
+                    //std::cout << "WiaScanDlg::setupCombo"
+                    //          << " val " << val
+                    //          << " min " << min 
+                    //          << " max " << max << std::endl;
+                    auto step = std::max(min, 50);    // lowest values e.g.1 will be useless
+                    while (step <= max) {
+                        std::string id = psc::fmt::format("{}", step);
                         combo->append(id, id);
+                        if (val == step) {
+                            combo->set_active_id(id);
+                        }
+                        step += 50;
                     }
                 }
                 break;
