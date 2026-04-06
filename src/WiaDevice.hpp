@@ -47,15 +47,23 @@ public:
     Glib::ustring getDeviceName();
     HRESULT findItem(IWiaItem2 *pWiaItem, LONG typeMask, IWiaItem2** pRetChildWiaItem);
     IWiaItem2* getWiaItem();
-    static constexpr auto PropertyResolutionX = 6147u;
-    static constexpr auto PropertyResolutionY = 6148u;
+    static constexpr auto PropertyPreview{3100u}; 
+    static constexpr auto PropertyResolutionX = 6147u;  // this is only half the story only indicates range 1..600 
+    static constexpr auto PropertyResolutionY = 6148u;  // this is only half the story only indicates range 1..600 
     static constexpr auto PropertyStartX = 6149u;
     static constexpr auto PropertyStartY = 6150u;
     static constexpr auto PropertyExtendX = 6151u;
     static constexpr auto PropertyExtendY = 6152u;
     static constexpr auto PropertyBrightness = 6154u;
     static constexpr auto PropertyContrast = 6155u;
-    static constexpr auto PropertyThreshold = 6159u;
+    static constexpr auto PropertyThreshold = 6159u;    
+    // https://stackoverflow.com/questions/6215453/detect-all-available-scanner-resolutions-using-wia
+    // this might influence the available values -> not for resolution values
+    static constexpr auto Intent{6146u};       
+    static constexpr auto HorizontalOpticalResolution{3090u};  // seems just the value for maximum
+    static constexpr auto VerticalOpticalResolution{3091u};    // seems just the value for maximum    
+    static constexpr auto DiscreteResolutionX{117010u}; // PropertyResolutionX 
+    static constexpr auto DiscreteResolutionY{117011u}; 
     void readExtends(IWiaPropertyStorage *pWiaPropertyStorage);
     std::map<uint32_t, int32_t> buildScanProperties(
             bool full

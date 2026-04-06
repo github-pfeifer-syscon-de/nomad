@@ -243,10 +243,10 @@ WiaProperty::getPropertyId()
 std::vector<WiaValue2>
 WiaProperty::getRange(IWiaPropertyStorage *pWiaPropertyStorage)
 {
-    PROPSPEC propspec;
-    propspec.ulKind = PRSPEC_PROPID;
-    propspec.propid = m_propid;
-
+    PROPSPEC propspec{
+         .ulKind = PRSPEC_PROPID
+       , .propid = m_propid
+        };
     PROPVARIANT propAttribute;
     PropVariantInit(&propAttribute);
     auto c_nPropertyAttributeCount = 1;
@@ -333,6 +333,25 @@ WiaProperty::getValue(IWiaPropertyStorage *pWiaPropertyStorage)
                   << " propid " << m_propid << std::endl;
     }
     return m_value;
+}
+
+bool
+WiaProperty::setValue(IWiaPropertyStorage *pWiaPropertyStorage, WiaValue2& val)
+{
+    PROPSPEC propspec{
+          .ulKind = PRSPEC_PROPID
+        , .propid = m_propid
+    };
+
+    // Set the properties
+    HRESULT hr = pWiaPropertyStorage->WriteMultiple(1ul, &propspec, &val.get(), WIA_IPA_FIRST);
+    if (!SUCCEEDED(hr)) {
+        std::string message = std::system_category().message(hr);
+        std::cout << "WiaProperty::setValue write propertes failed hr " << hr 
+                  << " message " << message << std::endl;            
+        return false;
+    }
+    return true;
 }
 
 

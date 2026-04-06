@@ -118,6 +118,7 @@ public:
     Glib::ustring info(IWiaPropertyStorage *pWiaPropertyStorage);
     PROPID getPropertyId();
     WiaValue2 getValue(IWiaPropertyStorage *pWiaPropertyStorage);
+    bool setValue(IWiaPropertyStorage *pWiaPropertyStorage, WiaValue2& val);
     std::vector<WiaValue2> getRange(IWiaPropertyStorage *pWiaPropertyStorage);
 
     static Glib::ustring convertVarTypeToString(VARTYPE vt);

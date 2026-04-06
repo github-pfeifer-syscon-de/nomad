@@ -606,8 +606,9 @@ WiaDevice::buildScanProperties(
         , double xRelEnd
         , double yRelEnd)
 {
-    auto dpi = full ? res : 75; // should look for actaul minimum
+    auto dpi = full ? res : 75; // should look for actual minimum
     auto map = std::map<uint32_t, int32_t>();
+    map.insert(std::make_pair(PropertyPreview, full ? 0 : 1));
     map.insert(std::make_pair(PropertyResolutionX, dpi));
     map.insert(std::make_pair(PropertyResolutionY, dpi));
     map.insert(std::make_pair(WIA_IPA_DEPTH, bits)); 

@@ -106,6 +106,18 @@ WiaScanDlg::deviceChanged()
             IWiaPropertyStorage *pWiaPropertyStorage = NULL;
             hr = pChildWiaItem->QueryInterface( IID_IWiaPropertyStorage, (void**)&pWiaPropertyStorage );
             if (SUCCEEDED(hr) && activeDev) {
+                for (auto property : activeDev->getProperties()) {
+                    if (property->getPropertyId() == WiaDevice::Intent) { 
+                        uint32_t intent = m_radioColor->get_active()
+                                            ? WIA_INTENT_IMAGE_TYPE_COLOR 
+                                            : WIA_INTENT_IMAGE_TYPE_GRAYSCALE;
+                        
+                        WiaValue2 val(VT_UI4, intent);
+                        bool succ = property->setValue(pWiaPropertyStorage, val);
+                        break;
+                    }
+                }                
+                
                 setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyBrightness, m_brightness);
                 setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyContrast, m_contrast);
                 //setupScale(activeDev, pWiaPropertyStorage, WiaDevice::PropertyThreshold, m_threshold);
@@ -142,6 +154,10 @@ WiaScanDlg::setupCombo(
         for (auto property : activeDev->getProperties()) {
             if (property->getPropertyId() == propertyId) {
                 auto values = property->getRange(pWiaPropertyStorage);
+                std::cout << "WiaScanDlg::setupCombo cnt " << values.size() << std::endl;
+                for (size_t i = 0; i < values.size(); ++i) {
+                    std::cout << "   [" << i << "] " << values[i].get<int32_t>() << std::endl;                    
+                }
                 if (values.size() >= 2) {
                     auto valProp = property->getValue(pWiaPropertyStorage);
                     auto val = valProp.get<int32_t>();
