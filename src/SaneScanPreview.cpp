@@ -28,7 +28,7 @@ SaneScanPreview::SaneScanPreview(BaseObjectType* cobject, const Glib::RefPtr<Gtk
 }
 
 void
-SaneScanPreview::setParameter(SANE_Parameters& parameters)
+SaneScanPreview::setParameter(const SANE_Parameters& parameters)
 {
     m_offs = 0l;
     m_pixbuf = Gdk::Pixbuf::create(

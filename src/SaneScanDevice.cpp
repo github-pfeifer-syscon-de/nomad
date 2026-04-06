@@ -644,7 +644,7 @@ SaneScanDevice::getParameters()
 }
 
 void
-SaneScanDevice::transfer(SaneScanPreview* scanPreview) {
+SaneScanDevice::transfer(SaneScanParamNotify* scanPreview) {
     checkOpen();
     SANE_Status sane_status = sane_start(m_sane_handle);
     if (sane_status != SANE_STATUS_GOOD) {
@@ -657,7 +657,9 @@ SaneScanDevice::transfer(SaneScanPreview* scanPreview) {
               << " line_pixels " << parameter.pixels_per_line
               << " lines " << parameter.lines
               << " depth " << parameter.depth << std::endl;
-    scanPreview->setParameter(parameter);
+    if (scanPreview) {
+        scanPreview->setParameter(parameter);
+    }
 
     std::vector<SANE_Byte> buf(parameter.bytes_per_line);   // the preview depends on transfer by line
     while (true) {
@@ -671,7 +673,9 @@ SaneScanDevice::transfer(SaneScanPreview* scanPreview) {
             throw SaneException("sane_read", sane_status);
         }
         if (len > 0) {
-            scanPreview->append(buf, len);
+	    if (scanPreview) {
+                scanPreview->append(buf, len);
+	    }
         }
         else {
             break;

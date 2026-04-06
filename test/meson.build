@@ -17,7 +17,8 @@ sane_test_deps = [sane_deps, genericimg_deps]
 
 saneTest = executable('sane_test'
       , files('sane_test.cpp'
-        , '../src/SaneScanDevice.cpp')
+      , '../src/SaneScanDevice.cpp'
+      )
       , include_directories : incTest
       , dependencies: sane_test_deps)
 # use as manual test
