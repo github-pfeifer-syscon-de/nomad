@@ -6,11 +6,14 @@ incTest = include_directories(
       '..'
      ,'../src')
 
+if get_option('libraw')
 rawTest = executable('raw_test'
     , 'raw_test.cpp'
     , include_directories : incTest
     , dependencies: raw_deps)
-test('raw_test', rawTest)
+# manual test needs reference to raw see source
+#test('raw_test', rawTest)
+endif
 
 if sane_lib.found()
 sane_test_deps = [sane_deps, genericimg_deps]

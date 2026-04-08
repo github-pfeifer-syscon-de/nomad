@@ -66,7 +66,7 @@ public:
     virtual ~ImageReaders() = default;
 
     Glib::RefPtr<Gdk::Pixbuf> read(const Glib::RefPtr<Gio::File>& file
-                , ImageFileChooser& file_chooser);
+                , ImageFileChooser& file_chooser) const;
     void prepareFilter(const Glib::RefPtr<Gtk::FileFilter>& filter);
     void addCustomPreview(Gtk::FileChooser& chooser
                 , ApplicationSupport& applicationSupport);

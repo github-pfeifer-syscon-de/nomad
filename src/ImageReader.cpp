@@ -16,14 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <StringUtils.hpp>
+#include <iostream>
 #include <ApplicationSupport.hpp>
 
 #include "nomad_config.h"
 
 #include "ImageReader.hpp"
 
-#include <ImageFileChooser.hpp>
 #ifdef LIBRAW
 #include "RawImageReader.hpp"
 #endif
@@ -73,7 +72,7 @@ ImageReaders::createDefault()
 }
 
 Glib::RefPtr<Gdk::Pixbuf>
-ImageReaders::read(const Glib::RefPtr<Gio::File>& file, ImageFileChooser& file_chooser)
+ImageReaders::read(const Glib::RefPtr<Gio::File>& file, ImageFileChooser& file_chooser) const
 {
     for (auto reader : m_readers) { // no auto& as the pixbuf decays to early :(
         auto pixbuf = reader->read(file, file_chooser);
@@ -90,7 +89,7 @@ ImageReaders::read(const Glib::RefPtr<Gio::File>& file, ImageFileChooser& file_c
     std::cout << "ImageReaders::read no reader accepted " << file->get_path()
               << " readers " << m_readers.size() << std::endl;
 #   endif
-    return Glib::RefPtr<Gdk::Pixbuf>();
+    return {};
 }
 
 void

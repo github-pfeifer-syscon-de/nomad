@@ -227,7 +227,7 @@ public:
     static constexpr auto BOTTOMRIGHTY_OPTION{"br-y"};      // Fixed
     static constexpr auto BRIGHTNESS_OPTION{"brightness"};  // Int
     static constexpr auto CONTRAST_OPTION{"contrast"};      // Int
-    static constexpr auto RESOLUTION_OPTION{"resolution"};  // Int
+    static constexpr auto RESOLUTION_OPTION{"resolution"};  // Int (-> allow fixed as well)
     static constexpr auto PREVIEW_OPTION{"preview"};
     void transfer(SaneScanParamNotify* scanPreview);
 protected:
