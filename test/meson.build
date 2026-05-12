@@ -17,7 +17,7 @@ endif
 
 sane_test_deps = [genericimg_deps]
 
-if get_option('sane')
+if use_sane
 saneTest = executable('sane_test'
       , files('sane_test.cpp'
       , '../src/SaneScanDevice.cpp'

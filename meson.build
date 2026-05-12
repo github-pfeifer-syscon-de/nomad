@@ -28,11 +28,12 @@ x11_lib        = cc.find_library('X11', required: false)   # , version : '>= 1.6
 x11_deps       = declare_dependency(dependencies: x11_lib)
 haru_lib       = cc.find_library('hpdf', required: false)
 libharu_deps   = declare_dependency(dependencies: haru_lib)
+use_sane       = cc.has_header_symbol('sane/sane.h', 'sane_init')
 conf = configuration_data()
 conf.set_quoted('NOMAD_VERSION', meson.project_version())     # Surround the version in quotes to make it a C string
 conf.set       ('LIBRAW', get_option('libraw'))
 conf.set       ('USE_PDF', haru_lib.found())
-conf.set       ('USE_SANE_SCAN', get_option('sane'))
+conf.set       ('USE_SANE_SCAN', use_sane)
 
 conf_file = configure_file(output : 'nomad_config.h'
                , configuration : conf)

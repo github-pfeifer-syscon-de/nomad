@@ -1,2 +1,1 @@
 option('libraw', type : 'boolean', value : false)
-option('sane', type : 'boolean', value : false)

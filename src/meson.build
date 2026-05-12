@@ -25,8 +25,8 @@ endif
 if get_option('libraw')
     sources += files('RawImageReader.cpp')
 endif
-message('use sane ', get_option('sane'))
-if get_option('sane')
+message('use sane ', use_sane)
+if use_sane
 sources += files(
         'SaneScanDialog.cpp'
       , 'SaneScanDevice.cpp'

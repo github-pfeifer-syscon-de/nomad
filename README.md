@@ -26,7 +26,8 @@ The following dependencies libs are optional
 
 The Sane interface is a work in progress, results may vary... 
 
-To enable the interface with meson setup use -Dsane=true.
+The sane interface will be enabled if the include "sane/sane.h"
+was found on initalisation.
 The Sane interface is dynamically linked (at runtime),
 if you are interested why it came this way see explanation.
 The nomad.conf allows using a section like: 
@@ -39,7 +40,7 @@ to load the sane interface, adapt the path to match your installation
 
 ### Explanation
 
-To include the sane interface in meson.build is used: 
+To include the sane interface in meson.build was used: 
 ```
 sane_lib    = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   
 ```
