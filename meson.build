@@ -25,14 +25,14 @@ endif
 pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.project_name())
 add_project_arguments('-DPACKAGE_DATA_DIR="' + pkgdatadir + '"', language: 'cpp')
 x11_lib        = cc.find_library('X11', required: false)   # , version : '>= 1.6.4'
-x11_deps       = declare_dependency(dependencies : x11_lib)
+x11_deps       = declare_dependency(dependencies: x11_lib)
 haru_lib       = cc.find_library('hpdf', required: false)
-libharu_deps   = declare_dependency(dependencies : haru_lib)
+libharu_deps   = declare_dependency(dependencies: haru_lib)
 sane_lib       = dependency('', required: false)
 if target_machine.system() == 'linux'
-   sane_lib       = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   # look at usual place for sane
+   sane_lib    = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   # look at usual place for sane
 endif
-sane_deps      = declare_dependency(dependencies : sane_lib)
+sane_deps      = declare_dependency(dependencies: sane_lib)
 conf = configuration_data()
 conf.set_quoted('NOMAD_VERSION', meson.project_version())     # Surround the version in quotes to make it a C string
 conf.set       ('LIBRAW', get_option('libraw'))

@@ -26,9 +26,33 @@ The following dependencies libs are optional
 
 The Sane interface is a work in progress, results may vary... 
 
+To include the sane interface in meson.build it uses (at least for "arch-linux"): 
+```
+sane_lib    = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   
+```
+The generated build.ninja contains:
+```
+... 
+build nomad: ...
+-Wl,-rpath,/usr/lib/sane -Wl,--start-group ... /usr/lib/sane/libsane-dll.so -Wl,--end-group
+```
+The generated executable will run fine from build dir.
+With meson 1.11? install will remove the RUNPATH from executable 
+```
+ readelf -d  nomad |grep sane
+ 0x0000000000000001 (NEEDED)             Shared library: [libsane-dll.so.1]
+ 0x000000000000001d (RUNPATH)            Library runpath: [/usr/lib/sane]
+ readelf -d  pkg/.../usr/bin/nomad |grep sane
+ 0x0000000000000001 (NEEDED)             Shared library: [libsane-dll.so.1]
+```
+This breaks program startup, workaround alternatives:
+- set LD_LIBRARY_PATH before starting/conf files
+- use the binary from build dir (without install "processing")
+
 ## Windows
-The scanning interface is getting reworked for vista+,
-but at moment is not working.
+
+The Wia interface is a work in progress, results may vary...
+
 As the WIA headers wia_lh.h for vista+ is missing some functions 
 here is a workaround if you fell the need to implement more types:
 ```

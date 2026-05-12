@@ -15,9 +15,9 @@ rawTest = executable('raw_test'
 #test('raw_test', rawTest)
 endif
 
-if sane_lib.found()
 sane_test_deps = [sane_deps, genericimg_deps]
 
+if sane_lib.found()
 saneTest = executable('sane_test'
       , files('sane_test.cpp'
       , '../src/SaneScanDevice.cpp'
