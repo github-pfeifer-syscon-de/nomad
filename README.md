@@ -26,8 +26,8 @@ The following dependencies libs are optional
 
 The Sane interface is a work in progress, results may vary... 
 
-The sane interface will be enabled if the include "sane/sane.h"
-was found on initalisation.
+The sane interface will be enabled if 
+the include file "sane/sane.h" was found on initialisation.
 The Sane interface is dynamically linked (at runtime),
 if you are interested why it came this way see explanation.
 The nomad.conf allows using a section like: 
