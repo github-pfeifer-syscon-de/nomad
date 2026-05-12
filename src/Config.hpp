@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <string.h>
+
 #include "KeyConfig.hpp"
 
 class Config
@@ -59,6 +61,33 @@ public:
     void setTextFont(const Glib::ustring& textFont) {
         m_textFont = textFont;
     }
+    std::string getSanePath() {
+        auto path = getString(SCAN_GRP, SANE_PATH_CONF, "");
+        if (path.empty()) {
+            path = "/usr/lib/sane";
+            setString(SCAN_GRP, SANE_PATH_CONF, path);
+            saveConfig();   // save to give some hint
+        }
+        return path;
+    }
+    Glib::ustring getScanMode() {
+        return getString(SCAN_GRP, SCAN_MODE_CONF);
+    }
+    void setScanMode(const Glib::ustring& mode) {
+        setString(SCAN_GRP, SCAN_MODE_CONF, mode);
+    }
+    int getScanBrightness() {
+        return getInteger(SCAN_GRP, SCAN_BRIGHTNESS_CONF, 0);
+    }
+    void setScanBrightness(int bright) {
+        setInteger(SCAN_GRP, SCAN_BRIGHTNESS_CONF, bright);
+    }
+    int getScanContrast() {
+        return getInteger(SCAN_GRP, SCAN_CONTRAST_CONF, 0);
+    }
+    void setScanContrast(int contrast) {
+        setInteger(SCAN_GRP, SCAN_CONTRAST_CONF, contrast);
+    }
     void saveConfig() override;
     void loadConfig() override;
 protected:
@@ -70,11 +99,16 @@ private:
     Glib::ustring m_textFont{"Sans 10"};
 
     static constexpr auto MAIN_GRP{"main"};
+    static constexpr auto SCAN_GRP{"scan"};
     static constexpr auto DELAY_CONF{"delaySec"};
     static constexpr auto CAPTURE_WINDOW_CONF{"captureWindow"};
     static constexpr auto BACKGROUNDCOLOR_CONF{"backgroudColor"};
     static constexpr auto FOREGROUNDCOLOR_CONF{"foregroudColor"};
     static constexpr auto TEXTFONT_CONF{"textFont"};
+    static constexpr auto SANE_PATH_CONF{"sanePath"};
+    static constexpr auto SCAN_MODE_CONF{"mode"};
+    static constexpr auto SCAN_BRIGHTNESS_CONF{"brightness"};
+    static constexpr auto SCAN_CONTRAST_CONF{"contrast"};
 };
 
 

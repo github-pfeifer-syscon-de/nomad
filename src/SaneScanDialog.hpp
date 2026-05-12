@@ -36,8 +36,8 @@ public:
 
 protected:
     void deviceChanged();
-    void setupMode(const std::shared_ptr<SaneStringOption>& modeOption);
-    void setupAdjustment(const std::shared_ptr<SaneIntOption>& modeOption, Gtk::Scale* scale);
+    void setupMode(const std::shared_ptr<SaneStringOption>& modeOption, const Glib::ustring& mode);
+    void setupAdjustment(const std::shared_ptr<SaneIntOption>& modeOption, Gtk::Scale* scale, int configValue);
     void setupResolution(const std::shared_ptr<SaneIntOption>& resultion, Gtk::ComboBoxText* resolutionCombo);
     void preview();
     void scan();

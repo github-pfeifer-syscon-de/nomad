@@ -204,6 +204,11 @@ public:
 class SaneScanDevice
 {
 public:
+    // Required! use this call to link sane dynamically + check return!
+    static SANE_Status load_sanelib(const std::string& sane_path);
+    // Calls beyond this point become unsane
+    static void unload_sanelib();
+
     SaneScanDevice(const SANE_Device* device);
     explicit SaneScanDevice(const SaneScanDevice &other) = delete;
     virtual ~SaneScanDevice();
@@ -230,6 +235,7 @@ public:
     static constexpr auto RESOLUTION_OPTION{"resolution"};  // Int (-> allow fixed as well)
     static constexpr auto PREVIEW_OPTION{"preview"};
     void transfer(SaneScanParamNotify* scanPreview);
+
 protected:
     void checkOpen();
 

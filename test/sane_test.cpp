@@ -20,18 +20,22 @@
 #include <memory>
 #include <vector>
 #include <psc_format.hpp>
+#include <sane/sane.h>
 
 #include "nomad_config.h"   // use common configured
 #include "SaneScanDevice.hpp"
 
+
+
+
 static bool
 check_sane()
 {
-    SANE_Int sane_version{};
-    SANE_Status sane_status = sane_init(&sane_version, nullptr);
-    std::cout << "Sane version " << std::hex << sane_version << std::dec
-              << " init status " << sane_status
-              << std::endl;
+    auto initStatus = SaneScanDevice::load_sanelib("/usr/lib/sane");
+    if (initStatus != SANE_STATUS_GOOD) {
+        std::cout << "Error sane init status " << initStatus << std::endl;
+        return false;
+    }
     std::vector<std::shared_ptr<SaneScanDevice>> devices = SaneScanDevice::devices();;
     for (auto& device : devices) {
         std::cout << "dev " << device->getName() << std::endl;
@@ -49,7 +53,7 @@ check_sane()
         device->close();
     }
     devices.clear();    // ensure all closed devices
-    sane_exit();
+    SaneScanDevice::unload_sanelib();
     return true;
 }
 

@@ -8,7 +8,7 @@ Optional dependency libharu to allow exporting pdf.
 The desktop file contains entries, that make this app a picture viewer,
 if this is not expected remove MimeTypes from res/nomad.desktop.in.
 
-With meson there is the option to use -Dlibraw=true
+With meson setup there is the option to use -Dlibraw=true
 to support basic raw-file viewing.
 Since libraw does not supply a list of extensions to recognize
 files (I know it's not the smartest way to do this, but it is the fastest)
@@ -26,7 +26,20 @@ The following dependencies libs are optional
 
 The Sane interface is a work in progress, results may vary... 
 
-To include the sane interface in meson.build it uses (at least for "arch-linux"): 
+To enable the interface with meson setup use -Dsane=true.
+The Sane interface is dynamically linked (at runtime),
+if you are interested why it came this way see explanation.
+The nomad.conf allows using a section like: 
+```
+[scan] 
+sanePath=/usr/lib/sane
+```
+to load the sane interface, adapt the path to match your installation 
+(expected file: libsane-dll.so.1).
+
+### Explanation
+
+To include the sane interface in meson.build is used: 
 ```
 sane_lib    = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   
 ```
@@ -36,7 +49,7 @@ The generated build.ninja contains:
 build nomad: ...
 -Wl,-rpath,/usr/lib/sane -Wl,--start-group ... /usr/lib/sane/libsane-dll.so -Wl,--end-group
 ```
-The generated executable will run fine from build dir.
+Result: from the build dir the generated executable will run fine.
 With meson 1.11? install will remove the RUNPATH from executable 
 ```
  readelf -d  nomad |grep sane
@@ -45,7 +58,7 @@ With meson 1.11? install will remove the RUNPATH from executable
  readelf -d  pkg/.../usr/bin/nomad |grep sane
  0x0000000000000001 (NEEDED)             Shared library: [libsane-dll.so.1]
 ```
-This breaks program startup, workaround alternatives:
+This breaks program startup, workaround alternatives (now obsolete):
 - set LD_LIBRARY_PATH before starting/conf files
 - use the binary from build dir (without install "processing")
 

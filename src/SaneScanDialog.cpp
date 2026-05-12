@@ -32,12 +32,8 @@ SaneScanDialog::SaneScanDialog(BaseObjectType* cobject, const Glib::RefPtr<Gtk::
     builder->get_widget_derived("previewImages", m_saneScanPreview, m_completed);
     m_scanPreview = m_saneScanPreview;
 
-    std::cout << "Sane major " << SANE_CURRENT_MAJOR << std::endl;
-    SANE_Int sane_version{};
-    SANE_Status sane_status = sane_init(&sane_version, nullptr);
-    std::cout << "Sane version " << std::hex << sane_version << std::dec
-              << " init status " << sane_status
-              << std::endl;
+    auto config = nomadWin->getConfig();
+    SANE_Status sane_status = SaneScanDevice::load_sanelib(config->getSanePath());
     bool first{true};
     if (sane_status == SANE_STATUS_GOOD) {
         try {
@@ -56,6 +52,7 @@ SaneScanDialog::SaneScanDialog(BaseObjectType* cobject, const Glib::RefPtr<Gtk::
     }
     else {
         m_nomadWin->show_error(psc::fmt::format("Error {} sane init", static_cast<int>(sane_status)));
+        return;
     }
     m_device->signal_changed().connect(
             sigc::mem_fun(*this, &SaneScanDialog::deviceChanged));
@@ -69,19 +66,21 @@ SaneScanDialog::~SaneScanDialog()
 {
     m_scanDevices.clear();  // close devices
     std::cout << "Sane exit " << std::endl;
-    sane_exit();
+    SaneScanDevice::unload_sanelib();
 }
 
 
 void
-SaneScanDialog::setupMode(const std::shared_ptr<SaneStringOption>& modeOption)
+SaneScanDialog::setupMode(
+        const std::shared_ptr<SaneStringOption>& modeOption
+      , const Glib::ustring& confMode)
 {
     if (modeOption) {
         auto optConstr= modeOption->getConstraints();
         auto strConstr = std::dynamic_pointer_cast<SaneConstraintDiscreteString>(optConstr);
+        bool hasColor{};
+        bool hasGray{};
         if (strConstr) {
-            bool hasColor{};
-            bool hasGray{};
             for (auto optValue : strConstr->getValues()) {
                 //std::cout << "Scanning mode options " << optValue << std::endl;
                 if (optValue == SaneStringOption::MODE_COLOR) {
@@ -97,19 +96,28 @@ SaneScanDialog::setupMode(const std::shared_ptr<SaneStringOption>& modeOption)
         else {
             std::cout << "SaneScanDialog::deviceChanged unexpected constraint expected SaneConstraintDiscreteString" << std::endl;
         }
-        auto mode = modeOption->getStrValue();
+        std::string mode;
+        if (confMode.empty()) {
+             mode = modeOption->getStrValue();
+        }
+        else {
+            mode = confMode;
+        }
         //std::cout << "Scanning mode \"" << mode << "\"" << std::endl;
-        if (mode == SaneStringOption::MODE_COLOR) {
+        if (hasColor && mode == SaneStringOption::MODE_COLOR) {
             m_radioColor->set_active(true);
         }
-        else if (mode == SaneStringOption::MODE_GRAY) {
+        else if (hasGray && mode == SaneStringOption::MODE_GRAY) {
             m_radioGray->set_active(true);
         }
     }
 }
 
 void
-SaneScanDialog::setupAdjustment(const std::shared_ptr<SaneIntOption>& modeOption, Gtk::Scale* scale)
+SaneScanDialog::setupAdjustment(
+        const std::shared_ptr<SaneIntOption>& modeOption
+      , Gtk::Scale* scale
+      , int configValue)
 {
     if (modeOption) {
         auto constrRange = std::dynamic_pointer_cast<SaneConstraintRange>(modeOption->getConstraints());
@@ -120,6 +128,10 @@ SaneScanDialog::setupAdjustment(const std::shared_ptr<SaneIntOption>& modeOption
                 ,constrRange->getMax()
                 ,constrRange->getQuant());
             scale->set_adjustment(adjust);
+            if (configValue >= constrRange->getMin()
+             && configValue <= constrRange->getMax()) {
+                scale->set_value(configValue);
+            }
         }
         else {
             std::cout << "SaneScanDialog::deviceChanged option constr not range" << std::endl;
@@ -173,11 +185,11 @@ SaneScanDialog::deviceChanged()
             }
             if (m_scanDevice) {
                 auto modeOption = m_scanDevice->getStrOption(SaneScanDevice::MODE_OPTION);
-                setupMode(modeOption);
+                setupMode(modeOption, m_nomadWin->getConfig()->getScanMode());
                 auto brightness = m_scanDevice->getIntOption(SaneScanDevice::BRIGHTNESS_OPTION);
-                setupAdjustment(brightness, m_brightness);
+                setupAdjustment(brightness, m_brightness, m_nomadWin->getConfig()->getScanBrightness());
                 auto contrast = m_scanDevice->getOption<SaneIntOption>(SaneScanDevice::CONTRAST_OPTION);
-                setupAdjustment(contrast, m_contrast);
+                setupAdjustment(contrast, m_contrast, m_nomadWin->getConfig()->getScanContrast());
                 auto resolution = m_scanDevice->getOption<SaneIntOption>(SaneScanDevice::RESOLUTION_OPTION);
                 setupResolution(resolution, m_resolution);
                 //auto options = scanDevice->getOptions();
@@ -246,14 +258,18 @@ SaneScanDialog::setParameters(bool scan)
     if (color) {
         mode = SaneStringOption::MODE_COLOR;
     }
+    m_nomadWin->getConfig()->setScanMode(mode);
     auto modeOpt = m_scanDevice->getStrOption(SaneScanDevice::MODE_OPTION);
     modeOpt->setStrValue(mode);
     auto brightVal = static_cast<SANE_Int>(m_brightness->get_value());
+    m_nomadWin->getConfig()->setScanBrightness(brightVal);
     auto brightOpt = m_scanDevice->getIntOption(SaneScanDevice::BRIGHTNESS_OPTION);
     brightOpt->setIntValue(brightVal);
     auto contrastVal = static_cast<SANE_Int>(m_contrast->get_value());
+    m_nomadWin->getConfig()->setScanContrast(contrastVal);
     auto contrOpt = m_scanDevice->getIntOption(SaneScanDevice::CONTRAST_OPTION);
     contrOpt->setIntValue(contrastVal);
+    m_nomadWin->getConfig()->saveConfig();
 }
 
 void

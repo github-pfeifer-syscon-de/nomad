@@ -4,7 +4,7 @@ project('nomad', 'c', 'cpp'
                         , 'buildtype=debugoptimized'
                        ]
     , license : 'GPL-3.0'
-    , meson_version: '>=1.1.0'
+    , meson_version: '>=1.5.0'
     , version: '0.1')
 fs = import('fs')
 
@@ -28,16 +28,12 @@ x11_lib        = cc.find_library('X11', required: false)   # , version : '>= 1.6
 x11_deps       = declare_dependency(dependencies: x11_lib)
 haru_lib       = cc.find_library('hpdf', required: false)
 libharu_deps   = declare_dependency(dependencies: haru_lib)
-sane_lib       = dependency('', required: false)
-if target_machine.system() == 'linux'
-   sane_lib    = cc.find_library('sane-dll', required: false, dirs: '/usr/lib/sane')   # look at usual place for sane
-endif
-sane_deps      = declare_dependency(dependencies: sane_lib)
 conf = configuration_data()
 conf.set_quoted('NOMAD_VERSION', meson.project_version())     # Surround the version in quotes to make it a C string
 conf.set       ('LIBRAW', get_option('libraw'))
 conf.set       ('USE_PDF', haru_lib.found())
-conf.set       ('USE_SANE_SCAN', sane_lib.found())
+conf.set       ('USE_SANE_SCAN', get_option('sane'))
+
 conf_file = configure_file(output : 'nomad_config.h'
                , configuration : conf)
 incSrcLib = include_directories(fs.parent(conf_file))
@@ -69,7 +65,6 @@ deps = [genericimg_deps
     , libharu_deps
     , x11_deps
     , win_deps
-    , sane_deps
     ]
 
 project_targt = executable(meson.project_name()
