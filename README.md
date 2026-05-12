@@ -35,7 +35,7 @@ The nomad.conf allows using a section like:
 sanePath=/usr/lib/sane
 ```
 to load the sane interface, adapt the path to match your installation 
-(expected file: libsane-dll.so.1).
+(expected file: libsane-dll.so.1), if anything looks wrong check console output.
 
 ### Explanation
 

@@ -544,7 +544,7 @@ SaneScanDevice::load_sanelib(const std::string& sane_path)
         }
         std::cout << "Loaded lib successfully " << reinterpret_cast<void *>(lib_handle) << std::endl;
         dyn_sane_init = reinterpret_cast<type_dyn_sane_init>(dlsym(lib_handle, "sane_init"));
-        dyn_sane_exit = reinterpret_cast<type_dyn_sane_exit>(dlsym(lib_handle, "sane_init"));
+        dyn_sane_exit = reinterpret_cast<type_dyn_sane_exit>(dlsym(lib_handle, "sane_exit"));
         dyn_sane_get_devices = reinterpret_cast<type_dyn_sane_get_devices>(dlsym(lib_handle, "sane_get_devices"));
         dyn_sane_open = reinterpret_cast<type_dyn_sane_open>(dlsym(lib_handle, "sane_open"));
         dyn_sane_close = reinterpret_cast<type_dyn_sane_close>(dlsym(lib_handle, "sane_close"));
@@ -576,13 +576,13 @@ SaneScanDevice::load_sanelib(const std::string& sane_path)
                       << "sane_open " << reinterpret_cast<void *>(dyn_sane_open) << "\n"
                       << "sane_close " << reinterpret_cast<void *>(dyn_sane_close) << "\n"
                       << "sane_get_option_descriptor " << reinterpret_cast<void *>(dyn_sane_get_option_descriptor) << "\n"
-                      << "sane_control_option  " << reinterpret_cast<void *>(dyn_sane_control_option) << "\n"
-                      << "sane_get_parameters  " << reinterpret_cast<void *>(dyn_sane_get_parameters) << "\n"
-                      << "sane_start  " << reinterpret_cast<void *>(dyn_sane_start) << "\n"
-                      << "sane_read  " << reinterpret_cast<void *>(dyn_sane_read) << "\n"
+                      << "sane_control_option " << reinterpret_cast<void *>(dyn_sane_control_option) << "\n"
+                      << "sane_get_parameters " << reinterpret_cast<void *>(dyn_sane_get_parameters) << "\n"
+                      << "sane_start " << reinterpret_cast<void *>(dyn_sane_start) << "\n"
+                      << "sane_read " << reinterpret_cast<void *>(dyn_sane_read) << "\n"
                       << "sane_set_io_mode " << reinterpret_cast<void *>(dyn_sane_set_io_mode) << "\n"
                       << "sane_get_select_fd " << reinterpret_cast<void *>(dyn_sane_get_select_fd) << "\n"
-                      << "sane_strstatus  " << reinterpret_cast<void *>(dyn_sane_strstatus) << std::endl;
+                      << "sane_strstatus " << reinterpret_cast<void *>(dyn_sane_strstatus) << std::endl;
             return SANE_STATUS_UNSUPPORTED;
          }
     }
