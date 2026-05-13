@@ -235,7 +235,7 @@ public:
     static constexpr auto RESOLUTION_OPTION{"resolution"};  // Int (-> allow fixed as well)
     static constexpr auto PREVIEW_OPTION{"preview"};
     void transfer(SaneScanParamNotify* scanPreview);
-
+    static constexpr auto SANE_MIN_VERSION{0x1000000};
 protected:
     void checkOpen();
 
@@ -247,5 +247,7 @@ private:
     std::string m_type;
     SANE_Handle m_sane_handle{};
     std::vector<std::shared_ptr<SaneScanOption>> m_options;
+
+
 };
 

@@ -37,6 +37,10 @@ sanePath=/usr/lib/sane
 ```
 to load the sane interface, adapt the path to match your installation 
 (expected file: libsane-dll.so.1), if anything looks wrong check console output.
+The interface uses a minimal version check, if you feel this 
+might be too tight see ~SaneScanDevice.hpp:239 SANE_MIN_VERSION.
+Changed function signatures should result in compile errors
+(even if they appear a bit lengthly due to the template).
 
 ### Explanation
 
