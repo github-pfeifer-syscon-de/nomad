@@ -20,7 +20,6 @@
 #include <string_view>
 #include <sane/sane.h>
 
-
 class SaneException
 : public std::runtime_error
 {
@@ -204,9 +203,9 @@ public:
 class SaneScanDevice
 {
 public:
-    // Required! use this call to link sane dynamically + check return!
+    // required, use this call to link sane dynamically -> check return
     static SANE_Status load_sanelib(const std::string& sane_path);
-    // Calls beyond this point become unsane
+    // calls after calling this function become unsane
     static void unload_sanelib();
 
     SaneScanDevice(const SANE_Device* device);
@@ -238,6 +237,7 @@ public:
     static constexpr auto SANE_MIN_VERSION{0x1000000};
 protected:
     void checkOpen();
+    static bool sane_initialized;
 
 
 private:

@@ -27,7 +27,7 @@ The following dependencies libs are optional
 The Sane interface is a work in progress, results may vary... 
 
 The sane interface will be enabled if 
-the include file "sane/sane.h" was found on initialisation.
+the include file "sane/sane.h" was found on project setup.
 The Sane interface is dynamically linked (at runtime),
 if you are interested why it came this way see explanation.
 The nomad.conf allows using a section like: 
@@ -42,7 +42,7 @@ might be too tight see ~SaneScanDevice.hpp:239 SANE_MIN_VERSION.
 Changed function signatures should result in compile errors
 (even if they appear a bit lengthly due to the template).
 
-### Explanation
+### Library .so loading 
 
 To include the sane interface in meson.build was used: 
 ```
@@ -63,6 +63,7 @@ With meson 1.11? install will remove the RUNPATH from executable
  readelf -d  pkg/.../usr/bin/nomad |grep sane
  0x0000000000000001 (NEEDED)             Shared library: [libsane-dll.so.1]
 ```
+(probably nice for distributed programs, bad for use on the same system).
 This breaks program startup, workaround alternatives (now obsolete):
 - set LD_LIBRARY_PATH before starting/conf files
 - use the binary from build dir (without install "processing")

@@ -24,9 +24,6 @@
 
 #include "nomad_config.h"   // use common configured
 
-//   you probably want to adapt this (relative to home dir):
-static constexpr const char* RAW_FILEPATH{"Pictures/_DSC9438.NEF"};
-
 
 #ifdef LIBRAW
 #include <libraw.h>
@@ -83,10 +80,15 @@ using expl_destruct_unique_ptr = std::unique_ptr<T,std::function<void(T*)>>;
 // this is a simple test to see what data is accesssible,
 //   the errorhandling and resource management is poor.
 static bool
-check_raw_read()
+check_raw_read(int argc, char** argv)
 {
 #   ifdef LIBRAW
-    auto filePath = Glib::build_filename(Glib::get_home_dir(), RAW_FILEPATH);
+    if (argc <= 1) {
+        std::cout << "Please provide a file to test..." << std::endl;
+        return true;
+    }
+    std::cout << "Checking " << argv[1] << std::endl;
+    auto filePath = Glib::build_filename(Glib::get_home_dir(), argv[1]);
     auto file = Gio::File::create_for_path(filePath);
     if (!file->query_exists()) {            // can't blame the test if file isn't there
         std::cout << "The requested file " << file->get_path() << " was not found nothing tested!" << std::endl;
@@ -170,7 +172,7 @@ int main(int argc, char** argv)
     Gio::init();
     Gtk::Main main(0, 0, false);                   // needed to make wrap work
 
-    if (!check_raw_read()) {
+    if (!check_raw_read(argc, argv)) {
         return 1;
     }
     return 0;

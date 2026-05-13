@@ -28,16 +28,50 @@
 
 #include "SaneScanDevice.hpp"
 
-static void* lib_handle{};
+// contain our pointer magic into this struct
+struct sane_dynlib
+{
+    void* handle{};
+    virtual ~sane_dynlib()
+    {
+        if (handle) {   // support cleanup
+            dlclose(handle);
+            handle = nullptr;
+        }
+    }
+    void bind(const std::string& lookup)
+    {
+        handle = dlopen(lookup.c_str(), RTLD_NOW|RTLD_GLOBAL);
+    }
+    operator bool()
+    {
+        return handle != nullptr;
+    }
+    template <typename R>
+    R target() const
+    {
+        return reinterpret_cast<R>(handle);
+    }
+};
+std::ostream&
+operator<<(std::ostream& os, const sane_dynlib& rhs)
+{
+    os << "dynlib " << rhs.target<void*>();
+    return os;
+}
 // contain our template magic into this struct
 template <typename T>
-struct sane_dynaptr
+struct sane_dynfun
 {
     using type_ptr = std::add_pointer<T>::type;
     std::function<T> sane_fun;
-    void bind(void* lib_handle, const char* name)
+    bool bind(sane_dynlib& lib, const char* name)
     {
-        sane_fun = reinterpret_cast<type_ptr>(dlsym(lib_handle, name));
+        sane_fun = reinterpret_cast<type_ptr>(dlsym(lib.handle, name));
+        if (sane_fun == nullptr) {
+            std::cout << "sane_dynfun::bind for " << name << " failed!" << std::endl;
+        }
+        return sane_fun != nullptr;
     }
     operator bool()
     {
@@ -54,23 +88,30 @@ struct sane_dynaptr
         return sane_fun.template target<R>();
     }
 };
+template<typename T>
+std::ostream&
+operator<<(std::ostream& os, sane_dynfun<T>& rhs)
+{
+    os << "dynfun " << rhs.template target<void*>();
+    return os;
+}
 
+static sane_dynlib sane_lib;
 // stealing the definition should reduce the undetected incompatibilities
-static sane_dynaptr<decltype(sane_init)> dyn_sane_init;
-static sane_dynaptr<decltype(sane_exit)> dyn_sane_exit;
-static sane_dynaptr<decltype(sane_get_devices)> dyn_sane_get_devices;
-static sane_dynaptr<decltype(sane_open)> dyn_sane_open;
-static sane_dynaptr<decltype(sane_close)> dyn_sane_close;
-static sane_dynaptr<decltype(sane_get_option_descriptor)> dyn_sane_get_option_descriptor;
-static sane_dynaptr<decltype(sane_control_option)> dyn_sane_control_option;
-static sane_dynaptr<decltype(sane_get_parameters)> dyn_sane_get_parameters;
-static sane_dynaptr<decltype(sane_start)> dyn_sane_start;
-static sane_dynaptr<decltype(sane_read)> dyn_sane_read;
-static sane_dynaptr<decltype(sane_cancel)> dyn_sane_cancel;
-static sane_dynaptr<decltype(sane_set_io_mode)> dyn_sane_set_io_mode;
-static sane_dynaptr<decltype(sane_get_select_fd)> dyn_sane_get_select_fd;
-static sane_dynaptr<decltype(sane_strstatus)> dyn_sane_strstatus;
-static bool sane_initialized{};
+static sane_dynfun<decltype(sane_init)> dyn_sane_init;
+static sane_dynfun<decltype(sane_exit)> dyn_sane_exit;
+static sane_dynfun<decltype(sane_get_devices)> dyn_sane_get_devices;
+static sane_dynfun<decltype(sane_open)> dyn_sane_open;
+static sane_dynfun<decltype(sane_close)> dyn_sane_close;
+static sane_dynfun<decltype(sane_get_option_descriptor)> dyn_sane_get_option_descriptor;
+static sane_dynfun<decltype(sane_control_option)> dyn_sane_control_option;
+static sane_dynfun<decltype(sane_get_parameters)> dyn_sane_get_parameters;
+static sane_dynfun<decltype(sane_start)> dyn_sane_start;
+static sane_dynfun<decltype(sane_read)> dyn_sane_read;
+static sane_dynfun<decltype(sane_cancel)> dyn_sane_cancel;
+static sane_dynfun<decltype(sane_set_io_mode)> dyn_sane_set_io_mode;
+static sane_dynfun<decltype(sane_get_select_fd)> dyn_sane_get_select_fd;
+static sane_dynfun<decltype(sane_strstatus)> dyn_sane_strstatus;
 
 SaneException::SaneException(std::string_view where, SANE_Status sane_status)
 : std::runtime_error(psc::fmt::format("Sane exception {} status {}"
@@ -496,7 +537,8 @@ SaneFixedOption::getStrValue()
 }
 
 std::shared_ptr<SaneConstraint>
-SaneFixedOption::getConstraints() {
+SaneFixedOption::getConstraints()
+{
     std::shared_ptr<SaneConstraint> constr;
     if (m_sane_opt->constraint_type == SANE_CONSTRAINT_RANGE) {
         constr = std::make_shared<SaneConstraintRange>(
@@ -538,10 +580,12 @@ SaneButtonOption::SaneButtonOption(SANE_Handle sane_handle, const SANE_Option_De
 {
 }
 
+bool SaneScanDevice::sane_initialized{};
+
 SANE_Status
 SaneScanDevice::load_sanelib(const std::string& sane_path)
 {
-    if (!lib_handle) {
+    if (!sane_lib) {
         std::string sane_lookup = sane_path;
         if (sane_lookup.empty()) {
             sane_lookup = "/usr/lib/sane";
@@ -550,52 +594,29 @@ SaneScanDevice::load_sanelib(const std::string& sane_path)
             sane_lookup += "/";
         }
         sane_lookup += "libsane-dll.so.1";
-        lib_handle = dlopen(sane_lookup.c_str(), RTLD_NOW|RTLD_GLOBAL);
-        if (lib_handle == nullptr) {
-            std::cout << "Failed loading lib " <<  sane_lookup << " errno " << errno << " msg " <<  std::strerror(errno)  << std::endl;
+        sane_lib.bind(sane_lookup);
+        if (!sane_lib) {
+            std::cout << "Failed loading lib " << sane_lookup << " errno " << errno << " msg " <<  std::strerror(errno)  << std::endl;
             return SANE_STATUS_UNSUPPORTED;
         }
-        std::cout << "Loaded lib successfully " << reinterpret_cast<void *>(lib_handle) << std::endl;
-        dyn_sane_init.bind(lib_handle, "sane_init");
-        dyn_sane_exit.bind(lib_handle, "sane_exit");
-        dyn_sane_get_devices.bind(lib_handle, "sane_get_devices");
-        dyn_sane_open.bind(lib_handle, "sane_open");
-        dyn_sane_close.bind(lib_handle, "sane_close");
-        dyn_sane_get_option_descriptor.bind(lib_handle, "sane_get_option_descriptor");
-        dyn_sane_control_option.bind(lib_handle, "sane_control_option");
-        dyn_sane_get_parameters.bind(lib_handle, "sane_get_parameters");
-        dyn_sane_start.bind(lib_handle, "sane_start");
-        dyn_sane_read.bind(lib_handle, "sane_read");
-        dyn_sane_cancel.bind(lib_handle, "sane_cancel");
-        dyn_sane_set_io_mode.bind(lib_handle, "sane_set_io_mode");
-        dyn_sane_get_select_fd.bind(lib_handle, "sane_get_select_fd");
-        dyn_sane_strstatus.bind(lib_handle, "sane_strstatus");
-        if (!dyn_sane_init
-         || !dyn_sane_exit
-         || !dyn_sane_get_devices
-         || !dyn_sane_open
-         || !dyn_sane_close
-         || !dyn_sane_get_option_descriptor
-         || !dyn_sane_control_option
-         || !dyn_sane_get_parameters
-         || !dyn_sane_start
-         || !dyn_sane_read
-         || !dyn_sane_set_io_mode
-         || !dyn_sane_get_select_fd
-         || !dyn_sane_strstatus) {
-            std::cout << "sane_init "<< dyn_sane_init.target<void*>() << "\n"
-                      << "sane_exit " << dyn_sane_exit.target<void*>() << "\n"
-                      << "sane_get_devices " << dyn_sane_get_devices.target<void*>() << "\n"
-                      << "sane_open " << dyn_sane_open.target<void*>() << "\n"
-                      << "sane_close " << dyn_sane_close.target<void*>() << "\n"
-                      << "sane_get_option_descriptor " << dyn_sane_get_option_descriptor.target<void*>() << "\n"
-                      << "sane_control_option " << dyn_sane_control_option.target<void*>() << "\n"
-                      << "sane_get_parameters " << dyn_sane_get_parameters.target<void*>() << "\n"
-                      << "sane_start " << dyn_sane_start.target<void*>() << "\n"
-                      << "sane_read " << dyn_sane_read.target<void*>() << "\n"
-                      << "sane_set_io_mode " << dyn_sane_set_io_mode.target<void*>() << "\n"
-                      << "sane_get_select_fd " << dyn_sane_get_select_fd.target<void*>() << "\n"
-                      << "sane_strstatus " << dyn_sane_strstatus.target<void*>() << std::endl;
+        std::cout << "Loaded lib successfully " << sane_lib << std::endl;
+        if (dyn_sane_init.bind(sane_lib, "sane_init")
+         && dyn_sane_exit.bind(sane_lib, "sane_exit")
+         && dyn_sane_get_devices.bind(sane_lib, "sane_get_devices")
+         && dyn_sane_open.bind(sane_lib, "sane_open")
+         && dyn_sane_close.bind(sane_lib, "sane_close")
+         && dyn_sane_get_option_descriptor.bind(sane_lib, "sane_get_option_descriptor")
+         && dyn_sane_control_option.bind(sane_lib, "sane_control_option")
+         && dyn_sane_get_parameters.bind(sane_lib, "sane_get_parameters")
+         && dyn_sane_start.bind(sane_lib, "sane_start")
+         && dyn_sane_read.bind(sane_lib, "sane_read")
+         && dyn_sane_cancel.bind(sane_lib, "sane_cancel")
+         && dyn_sane_set_io_mode.bind(sane_lib, "sane_set_io_mode")
+         && dyn_sane_get_select_fd.bind(sane_lib, "sane_get_select_fd")
+         && dyn_sane_strstatus.bind(sane_lib, "sane_strstatus")) {
+            std::cout << "Binds successful" << std::endl;
+        }
+        else {
             return SANE_STATUS_UNSUPPORTED;
          }
     }
@@ -608,7 +629,7 @@ SaneScanDevice::load_sanelib(const std::string& sane_path)
                   << std::endl;
         if (sane_version < SANE_MIN_VERSION) {
             dyn_sane_exit();
-            std::cout << "The version may not be supported expecting >= " << SANE_MIN_VERSION << " maybe adjust"
+            std::cout << "This version may not be supported expecting >= " << SANE_MIN_VERSION << " maybe adjust"
                       << std::endl;
             return SANE_STATUS_UNSUPPORTED;
         }
@@ -625,10 +646,7 @@ SaneScanDevice::unload_sanelib()
         dyn_sane_exit();
         sane_initialized = false;
     }
-    //if (flib_handle) {  // once linked keep references, or second invocation may fail
-    //    dlclose(lib_handle);
-    //    lib_handle = nullptr;
-    //}
+    // once linked keep references, or second invocation may fail
 }
 
 SaneScanDevice::SaneScanDevice(const SANE_Device* device)
@@ -659,11 +677,11 @@ SaneScanDevice::getName()
 void
 SaneScanDevice::close()
 {
+    m_options.clear();
     if (m_sane_handle) {
         dyn_sane_close(m_sane_handle);
         m_sane_handle = nullptr;
     }
-    m_options.clear();
 }
 
 template<typename T>
@@ -783,7 +801,8 @@ SaneScanDevice::getParameters()
 }
 
 void
-SaneScanDevice::transfer(SaneScanParamNotify* scanPreview) {
+SaneScanDevice::transfer(SaneScanParamNotify* scanPreview)
+{
     checkOpen();
     SANE_Status sane_status = dyn_sane_start(m_sane_handle);
     if (sane_status != SANE_STATUS_GOOD) {

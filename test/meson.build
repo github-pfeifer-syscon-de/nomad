@@ -11,8 +11,8 @@ rawTest = executable('raw_test'
     , 'raw_test.cpp'
     , include_directories : incTest
     , dependencies: raw_deps)
-# manual test needs reference to raw see source
-#test('raw_test', rawTest)
+# manual test needs reference to raw (relative to user_home)
+#test('raw_test', rawTest, args: ['Pictures/_DSC9438.NEF'])
 endif
 
 sane_test_deps = [genericimg_deps]
